@@ -8,4 +8,5 @@ Ns*
 *.png
 *.mat
 *.jld
-./.idea
+.idea
+.idea/*
