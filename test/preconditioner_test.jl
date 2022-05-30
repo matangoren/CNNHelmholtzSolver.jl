@@ -14,7 +14,7 @@ using Random
 use_gpu = true
 if use_gpu == true
     using CUDA
-    #CUDA.allowscalar(false)
+    # CUDA.allowscalar(false)
     cgpu = gpu
 else
     cgpu = cpu
@@ -89,15 +89,16 @@ iter = 30
 
 test_name = "09_40_06 SDNUnet1 g=-1 t=Float32 g=t e=f k=0 50 n=128 f=10_0 m=20000 bs=20 lr=0_0001 each=70 i=155"
 test_name = "23_48_23 RADAM FFSDNUnet FFKappa SResidualBlock 10 elu 3 5 g=-1 t=Float32 g=t e=f r=f k=1 25 n=128 f=10_0 m=20000 bs=20 lr=0_0001 each=48 i=100"
+test_name = "13_28_54 RADAM ND FFSDNUnet TFFKappa TSResidualBlockI 10 elu 3 5 g=-1 t=Float32 g=t e=f r=f k=1 25 n=128 f=10_0 m=100 bs=20 lr=0_0001 each=48 i=120"
 
 sm_test_name = "23_48_23_$(run_title)_b$(blocks)_m$(kappa_type)_f$(Int32(f))_$(retrain_size)_$(iter)"
 sm_test_name_r = "$(sm_test_name)_retrain"
 
-model = load_model!("../models/$(test_name).bson", e_vcycle_input, kappa_input, gamma_input;kernel = kernel,model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
+model = load_model!("models/$(test_name).bson", e_vcycle_input, kappa_input, gamma_input;kernel = kernel,model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
 
-model_r128 = load_model!("../models/23_48_23 128 100 10 30 5 f f -1 r=f.bson", e_vcycle_input, kappa_input, gamma_input;kernel = kernel,model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
-model_r256 = load_model!("../models/23_48_23 10 blocks 256 300 10 20 3 f f -1 r=f.bson", e_vcycle_input, kappa_input, gamma_input;kernel = kernel,model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
-model_r512 = load_model!("../models/23_48_23 10 blocks 512 500 20 30 3 f f -1 r=f.bson", e_vcycle_input, kappa_input, gamma_input;kernel = kernel,model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
+model_r128 = load_model!("models/23_48_23 128 100 10 30 5 f f -1 r=f.bson", e_vcycle_input, kappa_input, gamma_input;kernel = kernel,model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
+model_r256 = load_model!("models/23_48_23 10 blocks 256 300 10 20 3 f f -1 r=f.bson", e_vcycle_input, kappa_input, gamma_input;kernel = kernel,model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
+model_r512 = load_model!("models/23_48_23 10 blocks 512 500 20 30 3 f f -1 r=f.bson", e_vcycle_input, kappa_input, gamma_input;kernel = kernel,model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
 
 # model_r128, _ = model_tuning!(model1, sm_test_name, kappa, omega, gamma, n, m, f, retrain_size, bs, iter, 0.001, kappa_threshold, false, false, k_kernel, -1,kappa_type;residual_loss=false)
 

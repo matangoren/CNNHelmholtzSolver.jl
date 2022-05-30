@@ -114,7 +114,7 @@ end
 
 init_lr = 0.0001
 opt = RADAM(init_lr)
-train_size = 25000
+train_size = 100 #25000
 test_size = 100
 batch_size = 20
 iterations = 120

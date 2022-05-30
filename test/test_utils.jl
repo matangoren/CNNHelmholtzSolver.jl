@@ -71,7 +71,7 @@ end
 
 function load_model!(test_name, e_vcycle_input, kappa_input, gamma_input;kernel=(3,3), model_type=SUnet, k_type=NaN, resnet_type=SResidualBlock, k_chs=-1, indexes=3, σ=elu, arch=0)
     model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
-    model = model|>pu
+    model = model|>cpu
     @load test_name model #"../../models/$(test_name).bson" model
     @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
     model = model|>cgpu
