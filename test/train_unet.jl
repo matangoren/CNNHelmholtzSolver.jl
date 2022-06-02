@@ -2,6 +2,7 @@ using Statistics
 using LinearAlgebra
 using Flux
 using Flux: @functor
+using Flux.Data: DataLoader
 using LaTeXStrings
 using KrylovMethods
 using Distributions: Normal
@@ -11,7 +12,7 @@ using CSV, DataFrames
 using Dates
 using Random
 
-use_gpu = true
+use_gpu = false
 if use_gpu == true
     using CUDA
     #CUDA.allowscalar(false)
@@ -26,12 +27,12 @@ r_type = Float64
 c_type = ComplexF64
 u_type = Float32
 gmres_type = ComplexF64
-a_type = CuArray{gmres_type}
+# a_type = CuArray{gmres_type}
 a_type = Array{gmres_type}
 
 include("../src/multigrid/helmholtz_methods.jl")
 include("../src/unet/model.jl")
-include("../src/unet/data.jl")
+include("../src/data.jl")
 include("../src/unet/train.jl")
 include("../src/kappa_models.jl")
 include("test_utils.jl")
@@ -114,10 +115,10 @@ end
 
 init_lr = 0.0001
 opt = RADAM(init_lr)
-train_size = 100 #25000
-test_size = 100
-batch_size = 20
-iterations = 120
+train_size = 10 #25000
+test_size = 10
+batch_size = 5
+iterations = 2 #120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
 

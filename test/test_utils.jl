@@ -348,6 +348,7 @@ function unet_vs_vcycle_cpu_gmres!(model, n, m, kappa, kappa_features, omega, ga
         return res
     end
 
+    # seems redundant - just use M with after_vcycle=false
     function SM(r)
         e_vcycle = zeros(c_type,n-1,m-1)
         e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r[:,1], n-1, m-1), kappa, omega, gamma; v2_iter = v2_iter, level = 3)
