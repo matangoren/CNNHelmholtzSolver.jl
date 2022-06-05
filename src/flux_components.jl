@@ -44,7 +44,9 @@ end
 
 function helmholtz_chain_channels!(grid, matrix; h = 1)
     filter = r_type.((1.0 / (h^2)) * block_laplacian_filter)
-    conv = Conv(filter, [0.0], pad=(1,1))|> pu
+    # conv = Conv(filter, [0.0], pad=(1,1))|> pu
+    conv = Conv(filter, true, pad=(1,1))|> pu
     y = conv(grid)-sum(matrix .* grid, dims=4)
+    
     return y
 end

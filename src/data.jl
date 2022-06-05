@@ -71,15 +71,16 @@ function generate_r_vcycle!(n, m, kappa, omega, gamma, x_true; v2_iter=10, level
 end
 
 function generate_random_data!(data_set_m, n, m, kappa, omega, gamma; e_vcycle_input=true, v2_iter=10, level=3, data_augmentetion=false,
-                                                          kappa_type=1, threshold=50, kappa_input=true, kappa_smooth=false, k_kernel=3, axb=false, jac=false, norm_input=false, gmres_restrt=1)
+                                                          kappa_type=1, threshold=50, kappa_input=true, kappa_smooth=false, k_kernel=3, axb=false, jac=false, norm_input=false, gmres_restrt=1, same_kappa=false)
 
     h = r_type(2.0 ./ (n+m))
     dataset = Tuple[]
     data_set_m = data_augmentetion == true ? floor(Int32,0.75*data_set_m) : data_set_m
     for i = 1:data_set_m
         # Generate Model
-        kappa = generate_kappa!(n,m; type=kappa_type, smooth=kappa_smooth, threshold=threshold, kernel=k_kernel)|>pu
-
+        if same_kappa == false
+            kappa = generate_kappa!(n,m; type=kappa_type, smooth=kappa_smooth, threshold=threshold, kernel=k_kernel)|>pu
+        end
         # Generate Random Sample
         x_true = randn(c_type,n-1,m-1, 1, 1)|>pu
 

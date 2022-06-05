@@ -898,11 +898,20 @@ function FFSDNUnet(channels::Int = 2, labels::Int = channels; kernel = (3, 3), Ï
     FFSDNUnet(conv_down_blocks, conv_blocks, up_blocks)
 end
 
+
 function (u::FFSDNUnet)(x::AbstractArray, features)
 
     # n X n X 4 X bs + n X n X 16 X bs-> (n/2) X (n/2) X 16 X bs
     op = u.conv_blocks[1](u.conv_down_blocks[1](x))
     # (n/2) X (n/2) X 16 X bs -> (n/4) X (n/4) X 32 X bs
+    println("features[1] size: ", size(features[1]))
+    println("op size: ", size(op))
+    
+    println("features size: ", size(features))
+    println("features type: ", typeof(features))
+    features = duplicate_last_channel!.(features, size(op,4))
+    println("features[1] size after map: ", size(features[1]))
+    # duplicate features[i] batch_size times
     x1 = u.conv_blocks[2](u.conv_down_blocks[2](cat(op, features[1], dims=3)))
     # (n/4) X (n/4) X 32 X bs -> (n/8) X (n/8) X 64 X bs
     x2 = u.conv_blocks[3](u.conv_down_blocks[3](cat(x1, features[2], dims=3)))

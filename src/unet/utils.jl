@@ -53,14 +53,16 @@ function loss_bce(x, y)
 end
 
 function complex_grid_to_channels!(grid)
-    grid_channels = CuArray{r_type}(undef, size(grid,1), size(grid,2), 2, 1)
+    # grid_channels = CuArray{r_type}(undef, size(grid,1), size(grid,2), 2, 1)
+    grid_channels = Array{r_type}(undef, size(grid,1), size(grid,2), 2, 1)
     grid_channels[:, :, 1, :] = real(grid)
     grid_channels[:, :, 2, :] = imag(grid)
     return grid_channels
 end
 
 function complex_helmholtz_to_channels!(helmholtz_matrix)
-    helmholtz_channels = CuArray{r_type}(undef, size(grid,1), size(grid,2), 2, 2)
+    # helmholtz_channels = CuArray{r_type}(undef, size(grid,1), size(grid,2), 2, 2)
+    helmholtz_channels = Array{r_type}(undef, size(grid,1), size(grid,2), 2, 2)
     helmholtz_channels[:,:,1,1] = real(helmholtz_matrix)
     helmholtz_channels[:,:,2,1] = -imag(helmholtz_matrix)
     helmholtz_channels[:,:,1,2] = imag(helmholtz_matrix)
@@ -78,4 +80,16 @@ function check_helmholtz_channels!(helmholtz_matrix, x, n)
 
     @info "$(Dates.format(now(), "HH:MM:SS")) - Check Helmholtz Channels $(norm(channels_result .- original_result)), $(original_result[1,1,1,1]), $(channels_result[1,1,1,1])"
     println(norm(channels_result - original_result))
+end
+
+function append_input!(tuple, extension)
+  return (cat(tuple[1], extension, dims=3), tuple[2])
+end
+
+function convert_input!(tuple)
+  return (u_type.(tuple[1]), u_type.(tuple[2]))
+end
+
+function duplicate_last_channel!(x, times)
+  return repeat(x,1,1,1,times)
 end
