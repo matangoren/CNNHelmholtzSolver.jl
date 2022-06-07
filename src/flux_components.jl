@@ -35,7 +35,7 @@ function laplacian_conv!(grid; h= 1)
     return conv(grid)
 end
 
-function helmholtz_chain!(grid::Union{Array{ComplexF64}, Array{ComplexF32}}, matrix::Union{Array{ComplexF64}, Array{ComplexF32}}; h = 1)
+function helmholtz_chain!(grid::Union{Array{ComplexF64}, Array{ComplexF32}, CuArray{ComplexF32}, CuArray{ComplexF64}}, matrix::Union{Array{ComplexF64}, Array{ComplexF32}}; h = 1)
     filter = r_type.((1.0 / (h^2)) * laplacian_filter)
     conv = Conv(filter, r_type.([0.0]), pad=(1,1))|>pu
     y = conv(grid|>pu) - matrix .* grid

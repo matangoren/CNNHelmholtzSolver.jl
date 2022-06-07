@@ -12,7 +12,8 @@ function generate_vcycle!(n, m, kappa, omega, gamma, b; v2_iter=10, level=3, res
     gamma_coarse = down(reshape(gamma_coarse,  Int64((n/2)-1),  Int64((m/2)-1), 1, 1)|>pu)[:,:,1,1]
     sl_matrix_level1, h_matrix_level1 = get_helmholtz_matrices!(kappa_coarse, omega, gamma_coarse; alpha=r_type(0.5))
 
-    A(v::a_type) = vec(helmholtz_chain!(reshape(real(v), n-1, m-1, 1, 1), h_matrix_level3; h=h) + im*helmholtz_chain!(reshape(imag(v), n-1, m-1, 1, 1), h_matrix_level3; h=h))
+    # A(v::a_type) = vec(helmholtz_chain!(reshape(real(v), n-1, m-1, 1, 1), h_matrix_level3; h=h) + im*helmholtz_chain!(reshape(imag(v), n-1, m-1, 1, 1), h_matrix_level3; h=h))
+    A(v::a_type) = vec(helmholtz_chain!(reshape(v, n-1, m-1, 1, 1), h_matrix_level3; h=h))
     function M(v::a_type)
         v = reshape(v, n-1, m-1)
         x = zeros(c_type,n-1,m-1)|>pu

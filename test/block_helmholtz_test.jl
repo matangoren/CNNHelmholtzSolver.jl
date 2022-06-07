@@ -1,5 +1,4 @@
 using Statistics
-using LinearAlgebra: mul!
 using Flux
 using Flux: @functor
 using LaTeXStrings
@@ -11,7 +10,7 @@ using Dates
 using CSV, DataFrames
 using Random
 
-use_gpu = false
+use_gpu = true
 if use_gpu == true
     using CUDA
     # CUDA.allowscalar(false)

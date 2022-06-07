@@ -43,7 +43,8 @@ function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter =
 
         # Compute residual on fine grid
         x_matrix = reshape(x, n-1, m-1, 1, 1)
-        residual_fine = b - (helmholtz_chain!(real(x_matrix), helmholtz_matrix; h=h) + im*helmholtz_chain!(imag(x_matrix), helmholtz_matrix; h=h))[:,:,1,1] #) helmholtz_chain!(x_matrix, helmholtz_matrix; h=h)[:,:,1,1]
+        # residual_fine = b - (helmholtz_chain!(real(x_matrix), helmholtz_matrix; h=h) + im*helmholtz_chain!(imag(x_matrix), helmholtz_matrix; h=h))[:,:,1,1] #) helmholtz_chain!(x_matrix, helmholtz_matrix; h=h)[:,:,1,1]
+        residual_fine = b - helmholtz_chain!(x_matrix, helmholtz_matrix; h=h)[:,:,1,1]
 
         # Compute residual, kappa and gamma on coarse grid
         residual_coarse = down(reshape(real(residual_fine), n-1, m-1, 1, 1)|>pu)[:,:,1,1] + im * down(reshape(imag(residual_fine), n-1, m-1, 1, 1)|>pu)[:,:,1,1]
@@ -105,7 +106,9 @@ function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_
 
         # Compute residual on fine grid
         x_matrix = reshape(x, n-1, m-1, 1, 1)
-        residual_fine = b - (helmholtz_chain!(real(x_matrix), h_matrix; h=h) + im*helmholtz_chain!(imag(x_matrix), h_matrix; h=h))[:,:,1,1] #) helmholtz_chain!(x_matrix, helmholtz_matrix; h=h)[:,:,1,1]
+        println("x_matrix type $(typeof(x_matrix))")
+        # residual_fine = b - (helmholtz_chain!(real(x_matrix), h_matrix; h=h) + im*helmholtz_chain!(imag(x_matrix), h_matrix; h=h))[:,:,1,1] #) helmholtz_chain!(x_matrix, helmholtz_matrix; h=h)[:,:,1,1]
+        residual_fine = b - helmholtz_chain!(x_matrix, h_matrix; h=h)[:,:,1,1]
 
         # Compute residual, kappa and gamma on coarse grid
         residual_coarse = down(reshape(real(residual_fine), n-1, m-1, 1, 1)|>pu)[:,:,1,1] + im * down(reshape(imag(residual_fine), n-1, m-1, 1, 1)|>pu)[:,:,1,1]
@@ -132,7 +135,8 @@ function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_
         end
     else
         # Coarsest grid
-        A_Coarsest(v::a_type) = vec(helmholtz_chain!(real(reshape(v, n-1, m-1, 1, 1)), sl_matrix; h=h) + im*helmholtz_chain!(imag(reshape(v, n-1, m-1, 1, 1)), sl_matrix; h=h)) # vec(helmholtz_chain!(reshape(v, n-1, n-1, 1, 1), shifted_laplacian_matrix; h=h))
+        # A_Coarsest(v::a_type) = vec(helmholtz_chain!(real(reshape(v, n-1, m-1, 1, 1)), sl_matrix; h=h) + im*helmholtz_chain!(imag(reshape(v, n-1, m-1, 1, 1)), sl_matrix; h=h)) # vec(helmholtz_chain!(reshape(v, n-1, n-1, 1, 1), shifted_laplacian_matrix; h=h))
+        A_Coarsest(v::a_type) = vec(helmholtz_chain!(reshape(v, n-1, n-1, 1, 1), sl_matrix; h=h))
         M_Coarsest(v::a_type) = vec(jacobi_helmholtz_method!(n, m, h, x, reshape(v, n-1, m-1), sl_matrix)) #         M_Jacobi(n, h, x, sl_matrix, 1, v; use_gmres_alpha=use_gmres_alpha)
         x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=1e-15, maxIter=1,
                                                     M=M_Coarsest, x=vec(x), out=-1, flexible=true)
