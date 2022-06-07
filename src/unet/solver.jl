@@ -30,15 +30,7 @@ function unet_cpu_gmres!(model, n, m, kappa, kappa_features, omega, gamma, x_tru
 
     coefficient = r_type(h^2)
 
-    A(v) = vec(helmholtz_chain!(reshape(v, n-1, m-1, 1, 1), helmholtz_matrix; h=h))
-    function As(v)
-        res = vec(A(v[:,1]))
-        for i = 2:blocks
-            res = cat(res, vec(A(v[:,i])), dims=2)
-        end
-
-        return res
-    end
+    A(vs) = reshape(helmholtz_chain!(reshape(vs, n-1, m-1, 1, blocks), helmholtz_matrix; h=h),(n-1)*(m-1),blocks)
 
     function M_Unet(r)
         r = reshape(r, n-1, m-1)
@@ -87,10 +79,26 @@ function unet_cpu_gmres!(model, n, m, kappa, kappa_features, omega, gamma, x_tru
         return res
     end
 
+    function SM(r)
+        e_vcycle = zeros(c_type,n-1,m-1)
+        e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r[:,1], n-1, m-1), kappa, omega, gamma; v2_iter = v2_iter, level = 3)
+        res = vec(e_vcycle)
+        for i = 2:blocks
+            e_vcycle = zeros(c_type,n-1,m-1)
+            e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r[:,i], n-1, m-1), kappa, omega, gamma; v2_iter = v2_iter, level = 3)
+            res = cat(res, vec(e_vcycle), dims=2)
+        end
+
+        return res
+    end
+
     x_init = zeros(c_type,(n-1)*(m-1),blocks)
-    
-    x,flag,err,iter,resvec = KrylovMethods.blockFGMRES(As, r_vcycle, restrt, tol=1e-30, maxIter=max_iter,
-                                                            M=M_Unets, X=x_init, out=-1,flexible=true)
+    x3,flag3,err3,iter3,resvec3= KrylovMethods.blockFGMRES(A, r_vcycle, 3, tol=1e-30, maxIter=1,
+                                                    M=SM, X=x_init, out=-1,flexible=true)
+    i = 1
+    x1 = x3
+    x1,flag1,err1,iter1,resvec1 = KrylovMethods.blockFGMRES(A, r_vcycle, restrt, tol=1e-30, maxIter=max_iter,
+                                                            M=M_Unets, X =x1, out=-1,flexible=true)
 
     return x
 end

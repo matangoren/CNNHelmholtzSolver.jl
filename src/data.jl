@@ -56,7 +56,8 @@ end
 function generate_r_vcycle!(n, m, kappa, omega, gamma, x_true; v2_iter=10, level=3, restrt=1, jac=false)
     h = r_type(2.0 ./ (n+m))
     _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
-    b_true = helmholtz_chain!(real(x_true), helmholtz_matrix; h=h) + im*helmholtz_chain!(imag(x_true), helmholtz_matrix; h=h)
+    # b_true = helmholtz_chain!(real(x_true), helmholtz_matrix; h=h) + im*helmholtz_chain!(imag(x_true), helmholtz_matrix; h=h)
+    b_true = helmholtz_chain!(x_true, helmholtz_matrix; h=h)
 
     if jac == true
         x_vcycle, _ = generate_jacobi!(n, m, kappa, omega, gamma, b_true; v2_iter=v2_iter, level=level, restrt=restrt)
@@ -65,7 +66,8 @@ function generate_r_vcycle!(n, m, kappa, omega, gamma, x_true; v2_iter=10, level
     end
     x_vcycle = reshape(x_vcycle, n-1, m-1, 1, 1)
     e_true = x_true .- x_vcycle
-    r_vcycle = b_true .- (helmholtz_chain!(real(x_vcycle), helmholtz_matrix; h=h) + im*helmholtz_chain!(imag(x_vcycle), helmholtz_matrix; h=h))
+    # r_vcycle = b_true .- (helmholtz_chain!(real(x_vcycle), helmholtz_matrix; h=h) + im*helmholtz_chain!(imag(x_vcycle), helmholtz_matrix; h=h))
+    r_vcycle = b_true .- helmholtz_chain!(x_vcycle, helmholtz_matrix; h=h)
 
     return r_vcycle, e_true
 end
@@ -91,6 +93,7 @@ function generate_random_data!(data_set_m, n, m, kappa, omega, gamma; e_vcycle_i
             e_true = x_true
         else
             # Generate r,e
+            println("x_true type: ", typeof(x_true))
             r_vcycle, e_true = generate_r_vcycle!(n, m, kappa, omega, gamma, x_true;restrt=gmres_restrt, jac=jac)
         end
 
