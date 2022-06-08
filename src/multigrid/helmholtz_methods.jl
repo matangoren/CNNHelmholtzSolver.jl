@@ -109,7 +109,6 @@ function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_
 
         # Compute residual on fine grid
         x_matrix = reshape(x, n-1, m-1, 1, 1)
-        println("x_matrix type $(typeof(x_matrix))")
         # residual_fine = b - (helmholtz_chain!(real(x_matrix), h_matrix; h=h) + im*helmholtz_chain!(imag(x_matrix), h_matrix; h=h))[:,:,1,1] #) helmholtz_chain!(x_matrix, helmholtz_matrix; h=h)[:,:,1,1]
         residual_fine = b - helmholtz_chain!(x_matrix, h_matrix; h=h)[:,:,1,1]
 

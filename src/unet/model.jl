@@ -1,6 +1,6 @@
 include("../../src/unet/utils.jl")
 
-function create_model!(e_vcycle_input,kappa_input,gamma_input;kernel=(3,3),type=SUnet,k_type=NaN,resnet_type=SResidualBlock,k_chs=-1, indexes=3, σ=elu, arch=0)
+function create_model!(e_vcycle_input,kappa_input,gamma_input;kernel=(3,3),type=SUnet,k_type=NaN,resnet_type=SResidualBlock,k_chs=-1, indexes=3, σ=elu, arch=0, single_kappa=true)
     input = 2
     if e_vcycle_input == true
         input = input+2
@@ -17,7 +17,10 @@ function create_model!(e_vcycle_input,kappa_input,gamma_input;kernel=(3,3),type=
     else
         if arch == 2 # Encoder with a hierarchical context
             @info "$(Dates.format(now(), "HH:MM:SS")) - FeaturesUNet"
-            return FeaturesUNet(input,k_chs,type,k_type;kernel=kernel,indexes=indexes,σ=σ,resnet_type=resnet_type)
+            println("k_model type $(typeof(k_type))")
+            println("s_model type $(typeof(type))")
+            println("single_kappa type $(typeof(single_kappa))")
+            return FeaturesUNet(input,k_chs,type,k_type;kernel=kernel,indexes=indexes,σ=σ,resnet_type=resnet_type, single_kappa=single_kappa)
         else # Encoder with a simple context
             @info "$(Dates.format(now(), "HH:MM:SS")) - SplitUNet $(input) $(k_chs)"
             return SplitUNet(input,k_chs,type,k_type;kernel=kernel,indexes=indexes,σ=σ,resnet_type=resnet_type)
@@ -101,7 +104,7 @@ function (u::FFSDNUnet)(x::AbstractArray, features)
     
     println("features size: ", size(features))
     println("features type: ", typeof(features))
-    features = duplicate_last_channel!.(features, size(op,4))
+    # features = duplicate_last_channel!.(features, size(op,4))
     println("features[1] size after map: ", size(features[1]))
     # duplicate features[i] batch_size times
     x1 = u.conv_blocks[2](u.conv_down_blocks[2](cat(op, features[1], dims=3)))
@@ -191,9 +194,9 @@ end
 # TFFKappa: an encoder that prepares hierarchical inputand uses double ResNet steps
 
 struct TFFKappa
-conv_down_blocks
-conv_blocks
-up_blocks
+    conv_down_blocks
+    conv_blocks
+    up_blocks
 end
 
 @functor TFFKappa
@@ -302,25 +305,32 @@ end
 # FeaturesUNet: the encoder prepares hierarchical input for the solver network
 
 struct FeaturesUNet
-  kappa_subnet
-  solve_subnet
-  indexes
+    kappa_subnet
+    solve_subnet
+    indexes::Int64
+    single_kappa::Bool
 end
 
 @functor FeaturesUNet
 
-function FeaturesUNet(in_chs, k_chs, s_model, k_model; kernel = (3, 3), indexes=3, σ=elu, resnet_type=SResidualBlock)
+function FeaturesUNet(in_chs::Int64, k_chs::Int64, s_model::DataType, k_model::DataType; kernel = (3, 3), indexes=3, σ=elu, resnet_type=SResidualBlock, single_kappa=true)
     kappa_subnet = k_model(indexes-2,k_chs;kernel=kernel,σ=σ,resnet_type=resnet_type)
     solve_subnet = s_model(in_chs,2;kernel=kernel,σ=σ,resnet_type=resnet_type)
-    FeaturesUNet(kappa_subnet, solve_subnet, indexes)
+    FeaturesUNet(kappa_subnet, solve_subnet, indexes, single_kappa)
 end
 
 function (u::FeaturesUNet)(x::AbstractArray)
     # add here: support for single kappa and multiple kappas
-    kappa = reshape(x[:,:,3:u.indexes,1], size(x)[1], size(x)[1], u.indexes-2, 1)
-    features = u.kappa_subnet(kappa)
+    if u.single_kappa == true
+        kappa =  reshape(x[:,:,3:u.indexes,1], size(x,1), size(x,2), u.indexes-2, 1)
+        features = duplicate_last_channel!(u.kappa_subnet(kappa), size(x,4))
+    else
+        kappa = reshape(x[:,:,3:u.indexes,:], size(x,1), size(x,2), u.indexes-2, size(x,4))
+        features = u.kappa_subnet(kappa)
+    end
     println("in FeaturesUNet - kappa size $(size(kappa))")
     println("in FeaturesUNet - features size $(size(features))")
+    println("in FeaturesUNet - features[1] size $(size(features[1]))")
     u.solve_subnet(x, features)
 end
 # end of relevant models

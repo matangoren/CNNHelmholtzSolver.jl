@@ -94,7 +94,6 @@ function generate_random_data!(data_set_m, n, m, kappa, omega, gamma; e_vcycle_i
             e_true = x_true
         else
             # Generate r,e
-            println("x_true type: ", typeof(x_true))
             r_vcycle, e_true = generate_r_vcycle!(n, m, kappa, omega, gamma, x_true;restrt=gmres_restrt, jac=jac)
         end
 

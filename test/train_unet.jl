@@ -11,10 +11,10 @@ using Plots
 using CSV, DataFrames
 using Dates
 using Random
+using CUDA
 
 use_gpu = false
 if use_gpu == true
-    using CUDA
     #CUDA.allowscalar(false)
     cgpu = gpu
 else
@@ -43,7 +43,7 @@ function test_train_unet!(n, f, opt, init_lr, train_size, test_size, batch_size,
                                     is_save=false, data_augmentetion=false, e_vcycle_input=false,
                                     kappa_type=1, threshold=50, kappa_input=true, kappa_smooth=false, k_kernel=3,
                                     gamma_input=true, kernel=(3,3), smaller_lr=10, v2_iter=10, level=3,
-                                    axb=false, norm_input=false, model_type=SUnet, k_type=NaN, resnet_type=SResidualBlock, k_chs=-1, indexes=3, data_path="", full_loss=false, residual_loss=false, gmres_restrt=1, σ=elu, arch=1)
+                                    axb=false, norm_input=false, model_type=SUnet, k_type=NaN, resnet_type=SResidualBlock, k_chs=-1, indexes=3, data_path="", full_loss=false, residual_loss=false, gmres_restrt=1, σ=elu, arch=1, single_kappa=true)
 
     h = 1.0./n;
     gamma_val = 0.00001
@@ -53,7 +53,7 @@ function test_train_unet!(n, f, opt, init_lr, train_size, test_size, batch_size,
     gamma = gamma_val*2*pi * ones(r_type,size(kappa))
     gamma = r_type.(absorbing_layer!(gamma, pad_cells, omega))|>pu
     test_name = replace("$(Dates.format(now(), "HH_MM_SS")) RADAM ND $(model_type) $(k_type) $(resnet_type) $(k_chs) $(σ) $(indexes) $(k_kernel) g=$(gmres_restrt) t=$(u_type) g=$("$(gamma_input)"[1]) e=$("$(e_vcycle_input)"[1]) r=$("$(residual_loss)"[1]) k=$(kappa_type) $(threshold) n=$(n) f=$(f) m=$(train_size) bs=$(batch_size) lr=$(init_lr) each=$(smaller_lr) i=$(iterations)","."=>"_")
-    model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)|>cgpu
+    model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch, single_kappa=single_kappa)|>cgpu
     model, train_loss, test_loss = train_residual_unet!(model, test_name, n, n, f, kappa, omega, gamma,
                                                         train_size, test_size, batch_size, iterations, init_lr;
                                                         e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, data_augmentetion=data_augmentetion,
@@ -121,7 +121,7 @@ batch_size = 5
 iterations = 2 #120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
-
+blocks = 10
 
 test_train_unet!(128, 10.0, opt, init_lr, train_size, test_size, batch_size, iterations;
                     data_augmentetion = false,
@@ -148,4 +148,5 @@ test_train_unet!(128, 10.0, opt, init_lr, train_size, test_size, batch_size, ite
                     residual_loss = false,
                     data_path = "",
                     gmres_restrt = gmres_restrt,
-                    σ = elu)
+                    σ = elu,
+                    single_kappa=false)

@@ -65,7 +65,7 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
     if residual_loss == true
         CSV.write("$(test_name) loss.csv", DataFrame(Train=[], Residual=[], Error=[], Test=[]), delim = ';')
     end
-    append_gamma!(tuple) = append_input!(tuple,gamma)
+
     loss!(x, y) = error_loss!(model, x, y)
     loss!(tuple) = loss!(tuple[1], tuple[2])
     
