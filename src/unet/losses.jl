@@ -14,9 +14,9 @@ function norm_diff!(x,y)
     return sqrt(sum((x - y).^2) / sum(y.^2))
 end
 
-function error_loss!(model, input, output)
+function error_loss!(model, input, output; in_tuning=false)
     println("input size: ", size(input))
-    model_result = model(input)
+    model_result = model(input; in_tuning=in_tuning)
     println("model_result size: ", size(model_result))
     println("output size: ", size(output))
     return norm_diff!(model_result, output|>cgpu)

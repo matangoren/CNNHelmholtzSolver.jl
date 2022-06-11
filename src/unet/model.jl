@@ -1,6 +1,6 @@
 include("../../src/unet/utils.jl")
 
-function create_model!(e_vcycle_input,kappa_input,gamma_input;kernel=(3,3),type=SUnet,k_type=NaN,resnet_type=SResidualBlock,k_chs=-1, indexes=3, σ=elu, arch=0, single_kappa=true)
+function create_model!(e_vcycle_input,kappa_input,gamma_input;kernel=(3,3),type=SUnet,k_type=NaN,resnet_type=SResidualBlock,k_chs=-1, indexes=3, σ=elu, arch=0)
     input = 2
     if e_vcycle_input == true
         input = input+2
@@ -17,10 +17,7 @@ function create_model!(e_vcycle_input,kappa_input,gamma_input;kernel=(3,3),type=
     else
         if arch == 2 # Encoder with a hierarchical context
             @info "$(Dates.format(now(), "HH:MM:SS")) - FeaturesUNet"
-            println("k_model type $(typeof(k_type))")
-            println("s_model type $(typeof(type))")
-            println("single_kappa type $(typeof(single_kappa))")
-            return FeaturesUNet(input,k_chs,type,k_type;kernel=kernel,indexes=indexes,σ=σ,resnet_type=resnet_type, single_kappa=single_kappa)
+            return FeaturesUNet(input,k_chs,type,k_type;kernel=kernel,indexes=indexes,σ=σ,resnet_type=resnet_type)
         else # Encoder with a simple context
             @info "$(Dates.format(now(), "HH:MM:SS")) - SplitUNet $(input) $(k_chs)"
             return SplitUNet(input,k_chs,type,k_type;kernel=kernel,indexes=indexes,σ=σ,resnet_type=resnet_type)
@@ -308,22 +305,21 @@ struct FeaturesUNet
     kappa_subnet
     solve_subnet
     indexes::Int64
-    single_kappa::Bool
 end
 
 @functor FeaturesUNet
 
-function FeaturesUNet(in_chs::Int64, k_chs::Int64, s_model::DataType, k_model::DataType; kernel = (3, 3), indexes=3, σ=elu, resnet_type=SResidualBlock, single_kappa=true)
+function FeaturesUNet(in_chs::Int64, k_chs::Int64, s_model::DataType, k_model::DataType; kernel = (3, 3), indexes=3, σ=elu, resnet_type=SResidualBlock)
     kappa_subnet = k_model(indexes-2,k_chs;kernel=kernel,σ=σ,resnet_type=resnet_type)
     solve_subnet = s_model(in_chs,2;kernel=kernel,σ=σ,resnet_type=resnet_type)
-    FeaturesUNet(kappa_subnet, solve_subnet, indexes, single_kappa)
+    FeaturesUNet(kappa_subnet, solve_subnet, indexes)
 end
 
-function (u::FeaturesUNet)(x::AbstractArray)
-    # add here: support for single kappa and multiple kappas
-    if u.single_kappa == true
+function (u::FeaturesUNet)(x::AbstractArray; in_tuning=false)
+    println("in_tunine flag value = $(in_tuning)")
+    if in_tuning == true
         kappa =  reshape(x[:,:,3:u.indexes,1], size(x,1), size(x,2), u.indexes-2, 1)
-        features = duplicate_last_channel!(u.kappa_subnet(kappa), size(x,4))
+        features = repeat.(u.kappa_subnet(kappa), 1, 1, 1, size(x,4))
     else
         kappa = reshape(x[:,:,3:u.indexes,:], size(x,1), size(x,2), u.indexes-2, size(x,4))
         features = u.kappa_subnet(kappa)
