@@ -80,6 +80,7 @@ function generate_random_data!(data_set_m, n, m, kappa, omega, gamma; e_vcycle_i
     dataset = Tuple[]
     data_set_m = data_augmentetion == true ? floor(Int32,0.75*data_set_m) : data_set_m
     for i = 1:data_set_m
+        
         # Generate Model
         if same_kappa == false
             kappa = generate_kappa!(n,m; type=kappa_type, smooth=kappa_smooth, threshold=threshold, kernel=k_kernel)|>pu

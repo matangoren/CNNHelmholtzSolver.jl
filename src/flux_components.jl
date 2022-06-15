@@ -29,6 +29,7 @@ block_down = Conv(block_filter!(3, smooth_down_filter, 2), true, stride=2)
 
 i_conv = Conv(block_filter!(1, reshape([1.0],1,1,1,1), 2),true)|> pu
 
+# check how to perform mirroring padding
 function laplacian_conv!(grid; h= 1)
     filter = r_type.((1.0 / (h^2)) * laplacian_filter)
     conv = Conv(filter, r_type.([0.0]), pad=(1,1))

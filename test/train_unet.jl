@@ -59,7 +59,7 @@ function test_train_unet!(n, f, opt, init_lr, train_size, test_size, batch_size,
                                                         e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, data_augmentetion=data_augmentetion,
                                                         kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel,
                                                         gamma_input=gamma_input, kernel=kernel, smaller_lr=smaller_lr, axb=axb, jac=false, norm_input=norm_input, model_type=model_type, k_type=k_type, k_chs=k_chs, indexes=indexes,
-                                                        data_path=data_path, full_loss=full_loss, residual_loss=residual_loss, gmres_restrt=gmres_restrt,σ=σ)
+                                                        data_path=data_path, full_loss=full_loss, residual_loss=residual_loss, gmres_restrt=gmres_restrt,σ=σ, in_tuning=true)
 
     iter = range(1, length=iterations)
     p = plot(iter, train_loss, label="Train loss")

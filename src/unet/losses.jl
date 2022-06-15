@@ -15,10 +15,8 @@ function norm_diff!(x,y)
 end
 
 function error_loss!(model, input, output; in_tuning=false)
-    println("input size: ", size(input))
     model_result = model(input; in_tuning=in_tuning)
-    println("model_result size: ", size(model_result))
-    println("output size: ", size(output))
+    
     return norm_diff!(model_result, output|>cgpu)
 end
 
