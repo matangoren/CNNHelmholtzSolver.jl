@@ -13,9 +13,9 @@ using Dates
 using Random
 using CUDA
 
-use_gpu = false
+use_gpu = true
 if use_gpu == true
-    #CUDA.allowscalar(false)
+    # CUDA.allowscalar(false)
     cgpu = gpu
 else
     cgpu = cpu
@@ -115,10 +115,10 @@ end
 
 init_lr = 0.0001
 opt = RADAM(init_lr)
-train_size = 10 #25000
-test_size = 10
+train_size = 10 # 25000
+test_size = 10 # 100
 batch_size = 5
-iterations = 2 #120
+iterations = 1
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
 blocks = 10

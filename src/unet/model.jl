@@ -316,7 +316,6 @@ function FeaturesUNet(in_chs::Int64, k_chs::Int64, s_model::DataType, k_model::D
 end
 
 function (u::FeaturesUNet)(x::AbstractArray; in_tuning=false)
-    println("in_tunine flag value = $(in_tuning)")
     if in_tuning == true
         kappa =  reshape(x[:,:,3:u.indexes,1], size(x,1), size(x,2), u.indexes-2, 1)
         features = repeat.(u.kappa_subnet(kappa), 1, 1, 1, size(x,4))
@@ -324,9 +323,6 @@ function (u::FeaturesUNet)(x::AbstractArray; in_tuning=false)
         kappa = reshape(x[:,:,3:u.indexes,:], size(x,1), size(x,2), u.indexes-2, size(x,4))
         features = u.kappa_subnet(kappa)
     end
-    println("in FeaturesUNet - kappa size $(size(kappa))")
-    println("in FeaturesUNet - features size $(size(features))")
-    println("in FeaturesUNet - features[1] size $(size(features[1]))")
     u.solve_subnet(x, features)
 end
 # end of relevant models
