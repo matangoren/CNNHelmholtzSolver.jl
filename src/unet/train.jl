@@ -3,8 +3,8 @@ using BSON: @save
 include("losses.jl")
 
 function get_data_x_y(dataset, n, m, gamma)
-    x = zeros(r_type, n-1, m-1, 4, size(dataset,1))
-    y = zeros(r_type, n-1, m-1, 2, size(dataset,1))
+    x = zeros(r_type, n-1, m-1, 4, size(dataset,1)) |> cgpu
+    y = zeros(r_type, n-1, m-1, 2, size(dataset,1)) |> cgpu
 
     for i=1:size(dataset,1)
         x[:,:,1:3,i] = dataset[i][1]

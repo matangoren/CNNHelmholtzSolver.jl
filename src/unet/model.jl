@@ -316,13 +316,15 @@ function FeaturesUNet(in_chs::Int64, k_chs::Int64, s_model::DataType, k_model::D
 end
 
 function (u::FeaturesUNet)(x::AbstractArray; in_tuning=false)
-    if in_tuning == true
-        kappa =  reshape(x[:,:,3:u.indexes,1], size(x,1), size(x,2), u.indexes-2, 1)
-        features = repeat.(u.kappa_subnet(kappa), 1, 1, 1, size(x,4))
-    else
-        kappa = reshape(x[:,:,3:u.indexes,:], size(x,1), size(x,2), u.indexes-2, size(x,4))
-        features = u.kappa_subnet(kappa)
-    end
+    # if in_tuning == true
+    #     kappa =  reshape(x[:,:,3:u.indexes,1], size(x,1), size(x,2), u.indexes-2, 1)
+    #     features = repeat.(u.kappa_subnet(kappa), 1, 1, 1, size(x,4)) # error in GPU
+    # else
+    #     kappa = reshape(x[:,:,3:u.indexes,:], size(x,1), size(x,2), u.indexes-2, size(x,4))
+    #     features = u.kappa_subnet(kappa)
+    # end
+    kappa = reshape(x[:,:,3:u.indexes,:], size(x,1), size(x,2), u.indexes-2, size(x,4))
+    features = u.kappa_subnet(kappa)
     u.solve_subnet(x, features)
 end
 # end of relevant models

@@ -59,7 +59,7 @@ function test_train_unet!(n, f, opt, init_lr, train_size, test_size, batch_size,
                                                         e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, data_augmentetion=data_augmentetion,
                                                         kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel,
                                                         gamma_input=gamma_input, kernel=kernel, smaller_lr=smaller_lr, axb=axb, jac=false, norm_input=norm_input, model_type=model_type, k_type=k_type, k_chs=k_chs, indexes=indexes,
-                                                        data_path=data_path, full_loss=full_loss, residual_loss=residual_loss, gmres_restrt=gmres_restrt,σ=σ, in_tuning=true)
+                                                        data_path=data_path, full_loss=full_loss, residual_loss=residual_loss, gmres_restrt=gmres_restrt,σ=σ, in_tuning=false)
 
     iter = range(1, length=iterations)
     p = plot(iter, train_loss, label="Train loss")
@@ -70,55 +70,55 @@ function test_train_unet!(n, f, opt, init_lr, train_size, test_size, batch_size,
 
     # New Example Check
 
-    (input,e_true) = generate_random_data!(1, n, n, kappa, omega, gamma; e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level,
-                                                          kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, axb=axb, norm_input=norm_input, gmres_restrt=gmres_restrt)[1]
+    # (input,e_true) = generate_random_data!(1, n, n, kappa, omega, gamma; e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level,
+    #                                                       kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, axb=axb, norm_input=norm_input, gmres_restrt=gmres_restrt)[1]
 
-    e_vcycle = input[:,:,1:2,:]
-    r = input[:,:,end-1:end,:]
-    if gamma_input == true
-        input = cat(input, gamma, dims=3)
-    end
-    input = input|> cgpu
-    model_result = model(input)
-    model_result = model_result|>cpu
+    # e_vcycle = input[:,:,1:2,:]
+    # r = input[:,:,end-1:end,:]
+    # if gamma_input == true
+    #     input = cat(input, gamma, dims=3)
+    # end
+    # input = input|> cgpu
+    # model_result = model(input)
+    # model_result = model_result|>cpu
 
-    if is_save == true
-        heatmap(e_true[:,:,1,1], color=:grays)
-        title!(L"e^{true} = x - \tilde x")
-        savefig("test/unet_helmholtz/results/$(test_name) e_true")
+    # if is_save == true
+    #     heatmap(e_true[:,:,1,1], color=:grays)
+    #     title!(L"e^{true} = x - \tilde x")
+    #     savefig("test/unet_helmholtz/results/$(test_name) e_true")
 
-        heatmap(r[:,:,1,1], color=:grays)
-        title!(L"r = b^{true} - A \tilde x")
-        savefig("test/unet_helmholtz/results/$(test_name) r")
+    #     heatmap(r[:,:,1,1], color=:grays)
+    #     title!(L"r = b^{true} - A \tilde x")
+    #     savefig("test/unet_helmholtz/results/$(test_name) r")
 
-        heatmap(model_result[:,:,1,1], color=:grays)
-        title!(L"e^{unet} = Unet(r)")
-        savefig("test/unet_helmholtz/results/$(test_name) e_unet")
-    end
+    #     heatmap(model_result[:,:,1,1], color=:grays)
+    #     title!(L"e^{unet} = Unet(r)")
+    #     savefig("test/unet_helmholtz/results/$(test_name) e_unet")
+    # end
 
-    if e_vcycle_input == true
-        if is_save == true
-            heatmap(real(e_vcycle[:,:,1,1]), color=:grays)
-            title!(L"e^{vcycle} = Vcycle(A,r,e^{(0)}=0)")
-            savefig("test/unet_helmholtz/results/$(test_name) e_vcycle")
-        end
-        @info "$(Dates.format(now(), "HH:MM:SS")) - V-Cycle train error norm = $(norm_diff!(e_vcycle, e_true)), UNet train error norm = $(norm_diff!(model_result, e_true))"
-    else
-        @info "$(Dates.format(now(), "HH:MM:SS")) - UNet train error norm = $(norm_diff!(model_result, e_true))"
-    end
+    # if e_vcycle_input == true
+    #     if is_save == true
+    #         heatmap(real(e_vcycle[:,:,1,1]), color=:grays)
+    #         title!(L"e^{vcycle} = Vcycle(A,r,e^{(0)}=0)")
+    #         savefig("test/unet_helmholtz/results/$(test_name) e_vcycle")
+    #     end
+    #     @info "$(Dates.format(now(), "HH:MM:SS")) - V-Cycle train error norm = $(norm_diff!(e_vcycle, e_true)), UNet train error norm = $(norm_diff!(model_result, e_true))"
+    # else
+    #     @info "$(Dates.format(now(), "HH:MM:SS")) - UNet train error norm = $(norm_diff!(model_result, e_true))"
+    # end
 
-    dataset_size = 10
-    restrt = 10
-    max_iter = 6
-    check_model!(test_name, model, n, n, f, kappa, omega, gamma, e_vcycle_input, 4, kappa_input, gamma_input, kernel, dataset_size, restrt, max_iter; v2_iter=v2_iter, level=level, smooth=kappa_smooth, threshold=threshold, axb=axb, norm_input=norm_input, before_jacobi=false, indexes=indexes, arch=arch)
+    # dataset_size = 10
+    # restrt = 10
+    # max_iter = 6
+    # check_model!(test_name, model, n, n, f, kappa, omega, gamma, e_vcycle_input, 4, kappa_input, gamma_input, kernel, dataset_size, restrt, max_iter; v2_iter=v2_iter, level=level, smooth=kappa_smooth, threshold=threshold, axb=axb, norm_input=norm_input, before_jacobi=false, indexes=indexes, arch=arch)
 end
 
 init_lr = 0.0001
 opt = RADAM(init_lr)
-train_size = 10 # 25000
-test_size = 10 # 100
-batch_size = 5
-iterations = 1
+train_size = 10000
+test_size = 100
+batch_size = 20
+iterations = 120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
 blocks = 10
