@@ -32,7 +32,7 @@ function unet_vs_vcycle_graph!(title, vc_unet_res, unet_res, vc_res, j_unet_res;
     yaxis!(L"\Vert b - Hx \Vert_2", :log10)
     xlabel!("iterations")
 
-    savefig("test/unet/results/$(title) $(factor_text)")
+    savefig("test/unet/results/$(title) $(factor_text) unet_vs_vcycle.png")
     @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Convergence Factors : $(factor_text)"
     return "$(title) $(factor_text)"
 end
@@ -64,7 +64,7 @@ function unet_vs_vcycle_graph_times!(title, vc_unet_res, vc_unet_times, unet_res
     yaxis!(L"\Vert b - Hx \Vert_2", :log10)
     xlabel!("milliseconds")
 
-    savefig("test/unet/results/$(title) times $(factor_text)")
+    savefig("test/unet/results/$(title) times $(factor_text) unet_vs_vcycle")
     @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Convergence Factors : $(factor_text)"
     return "$(title) times $(factor_text)"
 end

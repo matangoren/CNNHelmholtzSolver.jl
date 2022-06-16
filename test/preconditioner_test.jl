@@ -93,7 +93,7 @@ iter = 30
 
 # test_name = "09_40_06 SDNUnet1 g=-1 t=Float32 g=t e=f k=0 50 n=128 f=10_0 m=20000 bs=20 lr=0_0001 each=70 i=155"
 # test_name = "23_48_23 RADAM FFSDNUnet FFKappa SResidualBlock 10 elu 3 5 g=-1 t=Float32 g=t e=f r=f k=1 25 n=128 f=10_0 m=20000 bs=20 lr=0_0001 each=48 i=100"
-test_name = "13_28_54 RADAM ND FFSDNUnet TFFKappa TSResidualBlockI 10 elu 3 5 g=-1 t=Float32 g=t e=f r=f k=1 25 n=128 f=10_0 m=100 bs=20 lr=0_0001 each=48 i=120"
+test_name = "10_51_11 RADAM ND FFSDNUnet TFFKappa TSResidualBlockI 10 elu 3 5 g=-1 t=Float32 g=t e=f r=f k=1 25 n=128 f=10_0 m=10000 bs=20 lr=0_0001 each=48 i=120"
 
 sm_test_name = "23_48_23_$(run_title)_b$(blocks)_m$(kappa_type)_f$(Int32(f))_$(retrain_size)_$(iter)"
 sm_test_name_r = "$(sm_test_name)_retrain"
