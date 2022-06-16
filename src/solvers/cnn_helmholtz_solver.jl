@@ -1,5 +1,6 @@
 export CnnJuliaSolver, getCnnJuliaSolver
 
+using jInv.LinearSolvers
 
 # need to add preconditioner type parameters - JU, VU...
 mutable struct CnnHelmholtzSolver <: AbstractSolver
