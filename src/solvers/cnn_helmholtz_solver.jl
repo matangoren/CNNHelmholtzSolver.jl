@@ -1,4 +1,4 @@
-export CnnJuliaSolver, getCnnJuliaSolver
+export CnnHelmholtzSolver,getCnnHelmholtzSolver,copySolver,solveLinearSystem,solveLinearSystem!,setupSolver
 
 using jInv.LinearSolvers
 
@@ -21,12 +21,19 @@ function getCnnHelmholtzSolver(; n=32, m=32, kappa=[], omega=[], gamma=[], model
     return CnnHelmholtzSolver(n, m, kappa, omega, gamma, model, tuning_size, tuning_iterations, jacobi_iterations, 0, 0)
 end
 
+solveLinearSystem(A,B,param::CnnHelmholtzSolver,doTranspose::Int=0) = solveLinearSystem!(A,B,[],param,doTranspose)
+
 function setupSolver(param::CnnHelmholtzSolver)
     param.kappa = [] # create new initial kappa model
     param.cnn_model = [] # load trained model
     # tune the model before continuing
     return param
 end
+
+function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::JuliaSolver,doTranspose=0)
+    println("in solveLinearSystem")
+end
+
 
 function clear!(param::CnnHelmholtzSolver)
     param.model = []

@@ -133,7 +133,7 @@ test_train_unet!(128, 10.0, opt, init_lr, train_size, test_size, batch_size, ite
                     k_kernel = 5,
                     gamma_input = true,
                     kernel = (3,3),
-                    smaller_lr = 48,
+                    smaller_lr = 20,
                     v2_iter = 10,
                     level = 3,
                     axb = false,

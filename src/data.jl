@@ -47,6 +47,7 @@ function generate_jacobi!(n, m, kappa, omega, gamma, b; v2_iter=10, level=3, res
     if restrt == -1
         restrt = rand(1:10)
     end
+
     x_vcycle, = fgmres_func(A, vec(b), restrt, tol=1e-10, maxIter=1,
                                                     M=M, x=vec(x0), out=-1, flexible=true)
     x_vcycle_channels = complex_grid_to_channels!(x_vcycle)
