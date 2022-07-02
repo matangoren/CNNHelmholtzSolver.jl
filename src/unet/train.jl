@@ -73,19 +73,19 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
     for iteration in 1:iterations
         println("===== iteration #$(iteration)/$(iterations) =====")
         println("GPU usage $(CUDA.available_memory() / 1e9)")
-        # if mod(iteration,smaller_lr) == 0
-        #     lr = lr / 10
-        #     opt = RADAM(lr)
-        #     batch_size = min(batch_size * 2,512)
-        #     batchs = floor(Int64,train_size / min((batch_size),train_size)) #*10
-        #     smaller_lr = ceil(Int64,smaller_lr / 2)
-        #     @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr) Batch Size $(batch_size)"
-        # end
-        if mod(iteration, smaller_lr) == 0
-            lr = lr / 5
+        if mod(iteration,smaller_lr) == 0
+            lr = lr / 2
             opt = RADAM(lr)
-            @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr)"
+            batch_size = min(batch_size * 2,512)
+            # batchs = floor(Int64,train_size / min((batch_size),train_size)) #*10
+            smaller_lr = ceil(Int64,smaller_lr / 2)
+            @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr) Batch Size $(batch_size)"
         end
+        # if mod(iteration, smaller_lr) == 0
+        #     lr = lr / 5
+        #     opt = RADAM(lr)
+        #     @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr)"
+        # end
 
         Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
         
