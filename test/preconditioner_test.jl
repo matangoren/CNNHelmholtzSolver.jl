@@ -83,7 +83,7 @@ max_iter = 30
 println("before kappa")
 kappa = r_type.(generate_kappa!(n, m; type=kappa_type, smooth=smooth, threshold=kappa_threshold, kernel=k_kernel)|>pu) #ones(r_type,n-1,n-1)
 println("after kappa")
-omega = r_type(2*pi*f);
+omega = r_type(2*pi*f); # 2*pi*1.5 / (10*h[1])
 gamma = gamma_val*2*pi * ones(r_type,size(kappa))
 gamma = r_type.(absorbing_layer!(gamma, pad_cells, omega))|>pu
 bs = 10

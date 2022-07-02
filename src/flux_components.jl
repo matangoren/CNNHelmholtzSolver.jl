@@ -1,7 +1,14 @@
 
 smooth_up_filter = r_type.( reshape((1/4) * [1 2 1;2 4.0 2;1 2 1],3,3,1,1))
 smooth_down_filter =r_type.( reshape((1/16) * [1 2 1;2 4 2;1 2 1],3,3,1,1))
-laplacian_filter = r_type.(reshape([0 -1 0;-1 4.0 -1;0 -1 0],3,3,1,1))
+# laplacian_filter = r_type.(reshape([0 -1 0;-1 4.0 -1;0 -1 0],3,3,1,1))
+
+function get_laplacian_filter(h::Array)
+    h1 = -1 / (h[1]^2)
+    h2 = -1 / (h[2]^2)
+    laplacian_filter = r_type.(reshape([0 h1 0;h2 -2*(h1+h2) h2;0 h1 0],3,3,1,1))
+    return laplacian_filter
+end
 
 function block_filter!(filter_size, kernel, channels)
     w = zeros(r_type, filter_size, filter_size, channels, channels)
@@ -11,15 +18,15 @@ function block_filter!(filter_size, kernel, channels)
     return w
 end
 
-function big_block_filter!(filter_size, kernel, channels)
-    w = u_type.(zeros(r_type, filter_size, filter_size, channels, channels))|>cgpu
-    for i in 1:channels
-        w[:,:,:,i] = u_type.(kernel)|>cgpu
-    end
-    return w
-end
+# function big_block_filter!(filter_size, kernel, channels)
+#     w = u_type.(zeros(r_type, filter_size, filter_size, channels, channels))|>cgpu
+#     for i in 1:channels
+#         w[:,:,:,i] = u_type.(kernel)|>cgpu
+#     end
+#     return w
+# end
 
-block_laplacian_filter = block_filter!(3, laplacian_filter, 2)
+block_laplacian_filter = block_filter!(3, get_laplacian_filter(h), 2)
 
 up = ConvTranspose(smooth_up_filter, true, stride=2)|> pu
 down = Conv(smooth_down_filter, true, stride=2)|> pu

@@ -1,4 +1,6 @@
 using CSV, DataFrames
+using Distributions: Uniform
+using Plots
 
 # x ← FGMRES(A=Helmholtz, M=V-Cycle, b, x = 0, maxIter = 1)
 function generate_vcycle!(n, m, kappa, omega, gamma, b; v2_iter=10, level=3, restrt=1)
@@ -77,7 +79,8 @@ end
 function generate_random_data!(data_set_m, n, m, kappa, omega, gamma; e_vcycle_input=true, v2_iter=10, level=3, data_augmentetion=false,
                                                           kappa_type=1, threshold=50, kappa_input=true, kappa_smooth=false, k_kernel=3, axb=false, jac=false, norm_input=false, gmres_restrt=1, same_kappa=false)
 
-    h = r_type(2.0 ./ (n+m))
+    # h = r_type(2.0 ./ (n+m))
+    h = r_type([1.0 ./ n ; 1.0 ./ m])
     dataset = Tuple[]
     data_set_m = data_augmentetion == true ? floor(Int32,0.75*data_set_m) : data_set_m
     for i = 1:data_set_m
@@ -163,6 +166,24 @@ function get_csv_set!(path, data_set_m, n, m)
     end
     return dataset
 end
+
+
+
+function get2DLinearModel(n::Int, m::Int; top_lb=1.65, top_ub=1.75, bottom_lb=2.5, bottom_ub=3.5, absorbing_val=1.5)
+    top_val = rand(Uniform(top_lb, top_ub))
+    bottom_val = rand(Uniform(bottom_lb, bottom_ub))
+    model = range(top_val,stop=bottom_val,length=n) * ones(m)';
+
+    #adding absorbing layers
+    num_layers = rand(2:7)
+    model[1:num_layers,:] .= absorbing_val
+
+    # display(heatmap(model, color=:jet, yflip=true)) # ask Eran about this
+
+    return model
+end
+
+
 
 # not in use:
 # function generate_gmres_data!(data_set_m, n, m, kappa, omega, gamma; e_vcycle_input=true, v2_iter=10, level=3, data_augmentetion=false,
