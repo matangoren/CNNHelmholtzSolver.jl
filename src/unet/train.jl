@@ -20,7 +20,7 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
                             train_size, test_size, batch_size, iterations, init_lr;
                             e_vcycle_input=true, v2_iter=10, level=3, data_augmentetion=true, kappa_type=1, threshold=50,
                             kappa_input=true, kappa_smooth=false, k_kernel=3, gamma_input=false, kernel=(3,3), smaller_lr=10, axb=false, jac=false, norm_input=false,
-                            model_type=SUnet, k_type=NaN, k_chs=-1, indexes=3, data_train_path="", data_test_path="", full_loss=false, residual_loss=false, error_details=false, gmres_restrt=1, σ=elu, in_tuning=false) #, model=NaN)
+                            model_type=SUnet, k_type=NaN, k_chs=-1, indexes=3, data_train_path="", data_test_path="", full_loss=false, residual_loss=false, error_details=false, gmres_restrt=1, σ=elu, in_tuning=false, linear_kappa=true) #, model=NaN)
 
     @info "$(Dates.format(now(), "HH:MM:SS")) - Start Train $(test_name)"
 
@@ -29,22 +29,23 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
     else
         train_set = generate_random_data!(train_size, n, m, kappa, omega, gamma;
                                                 e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, data_augmentetion =data_augmentetion,
-                                                kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=in_tuning)
+                                                kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=in_tuning, linear_kappa=linear_kappa)
     end
     if data_test_path != ""
         test_set = get_csv_set!(data_test_path, test_size, n, m)
     else
         test_set = generate_random_data!(test_size, n, m, kappa, omega, gamma;
                                                 e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level,
-                                                kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=in_tuning)
+                                                kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=in_tuning, linear_kappa=linear_kappa)
     end
     @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
     mkpath("models")
 
-    println("AFTER DATA GENERATION $(CUDA.available_memory() / 1e9)")
+    # println("AFTER DATA GENERATION $(CUDA.available_memory() / 1e9)")
     train_set_x, train_set_y = get_data_x_y(train_set, n, m, gamma)
     test_set_x, test_set_y = get_data_x_y(train_set, n, m, gamma)
-    println("AFTER DATA x_y $(CUDA.available_memory() / 1e9)")
+    # println("AFTER DATA x_y $(CUDA.available_memory() / 1e9)")
+
     batchs = floor(Int64,train_size / batch_size) # (batch_size*10))
     test_loss = zeros(iterations)
     train_loss = zeros(iterations) 
@@ -72,7 +73,7 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
 
     for iteration in 1:iterations
         println("===== iteration #$(iteration)/$(iterations) =====")
-        println("GPU usage $(CUDA.available_memory() / 1e9)")
+        # println("GPU usage $(CUDA.available_memory() / 1e9)")
         if mod(iteration,smaller_lr) == 0
             lr = lr / 2
             opt = RADAM(lr)
@@ -96,7 +97,7 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
         @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Train loss value = $(train_loss[iteration]) , Test loss value = $(test_loss[iteration])"
 
         if mod(iteration,30) == 0
-            println("GPU usage BEFORE saving $(CUDA.available_memory() / 1e9)")
+            # println("GPU usage BEFORE saving $(CUDA.available_memory() / 1e9)")
 
             model = model|>cpu
             @save "models/$(test_name).bson" model
@@ -104,7 +105,7 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
 
             model = model|>cgpu
 
-            println("GPU usage AFTER saving $(CUDA.available_memory() / 1e9)")
+            # println("GPU usage AFTER saving $(CUDA.available_memory() / 1e9)")
 
         end
     end

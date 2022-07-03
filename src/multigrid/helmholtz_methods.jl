@@ -10,11 +10,14 @@ function get_helmholtz_matrices!(kappa, omega, gamma; alpha=0.5)
 end
 
 function jacobi_helmholtz_method!(n, m, h, x, b, matrix; max_iter=1, w=0.8, use_gmres_alpha=0)
+    h1 = 1.0 / (h[1]^2)
+    h2 = 1.0 / (h[2]^2)
     for i in 1:max_iter
         # y = helmholtz_chain!(real(reshape(x, n-1, m-1, 1, 1)), matrix; h=h) + im*helmholtz_chain!(imag(reshape(x, n-1, m-1, 1, 1)), matrix; h=h)
         y = helmholtz_chain!(reshape(x, n-1, m-1, 1, 1), matrix; h=h)
         residual = b - y[:,:,1,1]
-        d = r_type(4.0 / h^2) .- matrix
+        # d = r_type(4.0 / h^2) .- matrix
+        d = r_type(2.0 * (h1 + h2)) .- matrix
         alpha = r_type(w) ./ d
         x = x + alpha .* residual
     end
@@ -22,10 +25,12 @@ function jacobi_helmholtz_method!(n, m, h, x, b, matrix; max_iter=1, w=0.8, use_
 end
 
 function jacobi_helmholtz_method_channels!(n, m, h, x, b, matrix, matrixch; max_iter=1, w=0.8, use_gmres_alpha=0)
+    h1 = 1.0 / (h[1]^2)
+    h2 = 1.0 / (h[2]^2)
     for i in 1:max_iter
         y = helmholtz_chain_channels!(x, matrix; h=h)
         residual = b - y
-        d = r_type(4.0 / h^2) .- matrixch
+        d = r_type(2.0 * (h1 + h2)) .- matrixch
         alpha = r_type(w) ./ d
         x = x + alpha .* residual
     end

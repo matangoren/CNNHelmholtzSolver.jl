@@ -6,7 +6,8 @@ include("helmholtz_methods.jl")
 function vcycle_cpu_gmres!(model, n, m, kappa, kappa_features, omega, gamma, x_true, after_vcycle, e_vcycle_input, kappa_input, gamma_input, restrt, max_iter, relax_jacobi; v2_iter=10, level=3, axb=false, norm_input=false, log_error=true, test_name="", before_jacobi=false, unet_in_vcycle=false, arch=1)
 
     _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
-    h = 2.0./(m+n)
+    # h = 2.0./(m+n)
+    h = [1.0/n ; 1.0/m]
 
     if axb == true
         r_vcycle = zeros(c_type,n-1,m-1,1,1)

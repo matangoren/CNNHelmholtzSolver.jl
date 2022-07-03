@@ -4,7 +4,8 @@ using Plots
 
 # x ← FGMRES(A=Helmholtz, M=V-Cycle, b, x = 0, maxIter = 1)
 function generate_vcycle!(n, m, kappa, omega, gamma, b; v2_iter=10, level=3, restrt=1)
-    h = r_type(2.0 ./ (n+m))
+    # h = r_type(2.0 ./ (n+m))
+    h = r_type.([1.0/n ; 1.0/m])
 
     sl_matrix_level3, h_matrix_level3 = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
     kappa_coarse = down(reshape(kappa, n-1, m-1, 1, 1)|>pu)[:,:,1,1]
@@ -34,7 +35,9 @@ end
 
 # x ← FGMRES(A=Helmholtz, M=Jacobi, b, x = 0, maxIter = 1)
 function generate_jacobi!(n, m, kappa, omega, gamma, b; v2_iter=10, level=3, restrt=1)
-    h = r_type(2.0 ./ (n+m))
+    # h = r_type(2.0 ./ (n+m))
+    h = r_type.([1.0/n ; 1.0/m])
+
     sl_matrix, h_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
 
     A(v::a_type) = vec(helmholtz_chain!(reshape(v, n-1, m-1, 1, 1), h_matrix; h=h))
@@ -58,7 +61,9 @@ end
 
 # r ← Ax - A(FGMRES(A=Helmholtz, M=V-Cycle, b, x = 0, maxIter = 1))
 function generate_r_vcycle!(n, m, kappa, omega, gamma, x_true; v2_iter=10, level=3, restrt=1, jac=false)
-    h = r_type(2.0 ./ (n+m))
+    # h = r_type(2.0 ./ (n+m))
+    h = r_type.([1.0/n ; 1.0/m])
+
     _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
     # b_true = helmholtz_chain!(real(x_true), helmholtz_matrix; h=h) + im*helmholtz_chain!(imag(x_true), helmholtz_matrix; h=h)
     b_true = helmholtz_chain!(x_true, helmholtz_matrix; h=h)
@@ -77,17 +82,22 @@ function generate_r_vcycle!(n, m, kappa, omega, gamma, x_true; v2_iter=10, level
 end
 
 function generate_random_data!(data_set_m, n, m, kappa, omega, gamma; e_vcycle_input=true, v2_iter=10, level=3, data_augmentetion=false,
-                                                          kappa_type=1, threshold=50, kappa_input=true, kappa_smooth=false, k_kernel=3, axb=false, jac=false, norm_input=false, gmres_restrt=1, same_kappa=false)
+                                                          kappa_type=1, threshold=50, kappa_input=true, kappa_smooth=false, k_kernel=3, axb=false, jac=false, norm_input=false, gmres_restrt=1, same_kappa=false, linear_kappa=true)
 
     # h = r_type(2.0 ./ (n+m))
-    h = r_type([1.0 ./ n ; 1.0 ./ m])
+    h = r_type.([1.0/n ; 1.0/m])
+
     dataset = Tuple[]
     data_set_m = data_augmentetion == true ? floor(Int32,0.75*data_set_m) : data_set_m
     for i = 1:data_set_m
         
         # Generate Model
         if same_kappa == false
-            kappa = generate_kappa!(n,m; type=kappa_type, smooth=kappa_smooth, threshold=threshold, kernel=k_kernel)|>pu
+            if linear_kappa == true
+                kappa = get2DLinearModel(n,m)
+            else
+                kappa = generate_kappa!(n,m; type=kappa_type, smooth=kappa_smooth, threshold=threshold, kernel=k_kernel)|>pu
+            end
         end
         # Generate Random Sample
         x_true = randn(c_type,n-1,m-1, 1, 1)|>pu
@@ -102,7 +112,7 @@ function generate_random_data!(data_set_m, n, m, kappa, omega, gamma; e_vcycle_i
             r_vcycle, e_true = generate_r_vcycle!(n, m, kappa, omega, gamma, x_true;restrt=gmres_restrt, jac=jac)
         end
 
-        r_vcycle = r_type(h^2) .* r_vcycle
+        r_vcycle = r_type(h[1]^2) .* r_vcycle # check this - how to support h1 and h2.
         if norm_input == true
             norm_r = r_type(norm(r_vcycle))
             r_vcycle = r_vcycle ./ norm_r
@@ -151,7 +161,9 @@ function generate_random_data!(data_set_m, n, m, kappa, omega, gamma; e_vcycle_i
 end
 
 function get_csv_set!(path, data_set_m, n, m)
-    h = r_type(2.0 ./ (n+m))
+    # h = r_type(2.0 ./ (n+m))
+    h = r_type.([1.0/n ; 1.0/m])
+
     df_training = CSV.File(path)|> DataFrame
     dataset = Tuple[]
     for i = 1:data_set_m
@@ -159,6 +171,7 @@ function get_csv_set!(path, data_set_m, n, m)
                     reshape(df_training.RI[(i-1)*(n-1)*(m-1)+1:i*(n-1)*(m-1)],n-1,m-1,1,1),
                     reshape(df_training.KAPPA[(i-1)*(n-1)*(m-1)+1:i*(n-1)*(m-1)],n-1,n-1,1,1), dims=3)
 
+        # check the usage of h - change it to h1 and h2
         output = cat(reshape(df_training.ER[(i-1)*(n-1)*(m-1)+1:i*(n-1)*(m-1)],n-1,n-1,1,1) ./ h^2,
                     reshape(df_training.EI[(i-1)*(n-1)*(m-1)+1:i*(n-1)*(m-1)],n-1,n-1,1,1) ./ h^2, dims=3)
 
@@ -172,7 +185,7 @@ end
 function get2DLinearModel(n::Int, m::Int; top_lb=1.65, top_ub=1.75, bottom_lb=2.5, bottom_ub=3.5, absorbing_val=1.5)
     top_val = rand(Uniform(top_lb, top_ub))
     bottom_val = rand(Uniform(bottom_lb, bottom_ub))
-    model = range(top_val,stop=bottom_val,length=n) * ones(m)';
+    model = range(top_val,stop=bottom_val,length=n-1) * ones(m-1)';
 
     #adding absorbing layers
     num_layers = rand(2:7)
@@ -182,6 +195,9 @@ function get2DLinearModel(n::Int, m::Int; top_lb=1.65, top_ub=1.75, bottom_lb=2.
 
     return model
 end
+
+velocityToSlowSquared(v::Array) = (1.0./(v.+1e-16)).^2
+
 
 
 
