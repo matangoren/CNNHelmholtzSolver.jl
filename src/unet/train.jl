@@ -3,12 +3,12 @@ using BSON: @save
 include("losses.jl")
 
 function get_data_x_y(dataset, n, m, gamma)
-    x = zeros(r_type, n-1, m-1, 4, size(dataset,1)) |> pu
-    y = zeros(r_type, n-1, m-1, 2, size(dataset,1)) |> pu
+    x = zeros(r_type, n+1, m+1, 4, size(dataset,1)) |> pu
+    y = zeros(r_type, n+1, m+1, 2, size(dataset,1)) |> pu
 
     for i=1:size(dataset,1)
         x[:,:,1:3,i] = dataset[i][1]
-        x[:,:,4,i] = gamma
+        x[:,:,4,i] = gamma # Eran said to train without gamma
         y[:,:,:,i] = dataset[i][2]
     end
 
@@ -78,15 +78,10 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
             lr = lr / 2
             opt = RADAM(lr)
             batch_size = min(batch_size * 2,512)
-            # batchs = floor(Int64,train_size / min((batch_size),train_size)) #*10
             smaller_lr = ceil(Int64,smaller_lr / 2)
             @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr) Batch Size $(batch_size)"
         end
-        # if mod(iteration, smaller_lr) == 0
-        #     lr = lr / 5
-        #     opt = RADAM(lr)
-        #     @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr)"
-        # end
+        
 
         Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
         

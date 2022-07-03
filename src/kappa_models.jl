@@ -21,7 +21,7 @@ stl10_train = zeros(10,10,10,10) #load_stl10()
 
 function generate_kappa!(n, m; type=0, smooth=false, threshold=50, kernel=3)
     if type == 0 # Uniform Model
-        return ones(r_type, n-1, m-1)
+        return ones(r_type, n+1, m+1)
     end
     if type > 4 # Geographical Model
         if type == 5
@@ -31,6 +31,7 @@ function generate_kappa!(n, m; type=0, smooth=false, threshold=50, kernel=3)
         elseif type == 7
             full_kappa = readdlm("MarmousiModelWithoutPad.dat")
         end
+        #check this
         sample = full_kappa[n+ceil(Int64,(size(full_kappa,1)-(n-1))/2-1):-1:ceil(Int64,(size(full_kappa,1)-(n-1))/2)+1,
                          ceil(Int64,(size(full_kappa,2)-(m-1))/2)+1:m+ceil(Int64,(size(full_kappa,2)-(m-1))/2)-1]
         sample = 1.0 ./ sample
@@ -47,7 +48,7 @@ function generate_kappa!(n, m; type=0, smooth=false, threshold=50, kernel=3)
         end
 
         # Resize
-        sample = imresize(sample, (n-1,m-1))
+        sample = imresize(sample, (n+1,m+1))
 
         # Smooth
         if smooth == true
