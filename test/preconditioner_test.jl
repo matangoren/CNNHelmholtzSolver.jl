@@ -81,7 +81,7 @@ f = 10.0
 restrt = 10
 max_iter = 30
 println("before kappa")
-kappa = r_type.(generate_kappa!(n, m; type=kappa_type, smooth=smooth, threshold=kappa_threshold, kernel=k_kernel)|>pu) #ones(r_type,n-1,n-1)
+kappa = r_type.(generate_kappa!(n, m; type=kappa_type, smooth=smooth, threshold=kappa_threshold, kernel=k_kernel)|>pu)
 println("after kappa")
 omega = r_type(2*pi*f); # 2*pi*1.5 / (10*h[1])
 gamma = gamma_val*2*pi * ones(r_type,size(kappa))
@@ -91,8 +91,6 @@ bs = 10
 retrain_size = 300
 iter = 30
 
-# test_name = "09_40_06 SDNUnet1 g=-1 t=Float32 g=t e=f k=0 50 n=128 f=10_0 m=20000 bs=20 lr=0_0001 each=70 i=155"
-# test_name = "23_48_23 RADAM FFSDNUnet FFKappa SResidualBlock 10 elu 3 5 g=-1 t=Float32 g=t e=f r=f k=1 25 n=128 f=10_0 m=20000 bs=20 lr=0_0001 each=48 i=100"
 test_name = "10_51_11 RADAM ND FFSDNUnet TFFKappa TSResidualBlockI 10 elu 3 5 g=-1 t=Float32 g=t e=f r=f k=1 25 n=128 f=10_0 m=10000 bs=20 lr=0_0001 each=48 i=120"
 
 sm_test_name = "23_48_23_$(run_title)_b$(blocks)_m$(kappa_type)_f$(Int32(f))_$(retrain_size)_$(iter)"
@@ -108,7 +106,7 @@ println("after model")
 # model_r128, _ = model_tuning!(model1, sm_test_name, kappa, omega, gamma, n, m, f, retrain_size, bs, iter, 0.001, kappa_threshold, false, false, k_kernel, -1,kappa_type;residual_loss=false)
 
 if point_sorce_results == false
-    check_point_source_problem!("$(Dates.format(now(), "HH_MM_SS")) $(sm_test_name)", model, n, m, kappa, omega, gamma, e_vcycle_input, kappa_input, gamma_input; v2_iter=v2_iter, level=level)
+    check_point_source_problem!("$(Dates.format(now(), "HH_MM_SS")) $(sm_test_name)", model, n, m, h, kappa, omega, gamma, e_vcycle_input, kappa_input, gamma_input; v2_iter=v2_iter, level=level)
 end
 if check_unet_as_preconditioner == true #gmres_alternatively_
     # check_model_times!(sm_test_name, model, n, m, f, kappa, omega, gamma, e_vcycle_input, kappa_type, kappa_input, gamma_input, kernel, dataset_size, restrt, max_iter; v2_iter=v2_iter, level=level, smooth=smooth, k_kernel=k_kernel, threshold=kappa_threshold, axb=axb, norm_input=norm_input, before_jacobi=false,log_error=false,unet_in_vcycle=unet_in_vcycle,indexes=indexes, arch=arch)
@@ -121,7 +119,7 @@ f = 20.0
 restrt = 15
 max_iter = 40
 k_kernel = 3
-kappa = r_type.((generate_kappa!(n, m; type=kappa_type, smooth=true, threshold=kappa_threshold, kernel=k_kernel))|>pu) #ones(r_type,n-1,n-1)
+kappa = r_type.((generate_kappa!(n, m; type=kappa_type, smooth=true, threshold=kappa_threshold, kernel=k_kernel))|>pu)
 omega = r_type(2*pi*f)
 gamma = gamma_val*2*pi * ones(r_type,size(kappa))
 gamma = r_type.((absorbing_layer!(gamma, pad_cells, omega))|>pu)
@@ -131,7 +129,7 @@ iter = 40
 # model, sm_test_name = model_tuning!(model, sm_test_name, kappa, omega, gamma, n, f,500, bs, iter, 0.001, kappa_threshold, false, false, k_kernel, -1;residual_loss=false)
 
 if point_sorce_results == false
-    check_point_source_problem!("$(Dates.format(now(), "HH_MM_SS")) $(sm_test_name)", model, n, m, kappa, omega, gamma, e_vcycle_input, kappa_input, gamma_input; v2_iter=v2_iter, level=level)
+    check_point_source_problem!("$(Dates.format(now(), "HH_MM_SS")) $(sm_test_name)", model, n, m, h, kappa, omega, gamma, e_vcycle_input, kappa_input, gamma_input; v2_iter=v2_iter, level=level)
 end
 if check_unet_as_preconditioner == true
     # check_model_times!("$(sm_test_name)", model, n, m, f, kappa, omega, gamma, e_vcycle_input, kappa_type, kappa_input, gamma_input, kernel, dataset_size, restrt, max_iter; v2_iter=v2_iter, level=level, smooth=smooth, k_kernel=k_kernel, threshold=kappa_threshold, axb=axb, norm_input=norm_input, before_jacobi=false,log_error=false,unet_in_vcycle=unet_in_vcycle,indexes=indexes, arch=arch)
@@ -154,7 +152,7 @@ iter = 40
 # model, sm_test_name = model_tuning!(model, sm_test_name, kappa, omega, gamma, n, f, 500, bs, iter, 0.001, kappa_threshold, false, false, k_kernel, -1;residual_loss=false)
 
 if point_sorce_results == false
-    check_point_source_problem!(test_name, model, n, m, kappa, omega, gamma, e_vcycle_input, kappa_input, gamma_input; v2_iter=v2_iter, level=level)
+    check_point_source_problem!(test_name, model, n, m, h, kappa, omega, gamma, e_vcycle_input, kappa_input, gamma_input; v2_iter=v2_iter, level=level)
 end
 if check_unet_as_preconditioner == true
     # check_model_times!("$(sm_test_name)", model, n, m, f, kappa, omega, gamma, e_vcycle_input, kappa_type, kappa_input, gamma_input, kernel, dataset_size, restrt, max_iter; v2_iter=v2_iter, level=level, smooth=smooth, k_kernel=k_kernel, threshold=kappa_threshold, axb=axb, norm_input=norm_input, before_jacobi=false,log_error=false,unet_in_vcycle=unet_in_vcycle,indexes=indexes, arch=arch)

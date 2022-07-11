@@ -81,15 +81,15 @@ f = 10.0
 restrt = 10
 max_iter = 30
 println("before kappa")
-kappa = r_type.(generate_kappa!(n, m; type=kappa_type, smooth=smooth, threshold=kappa_threshold, kernel=k_kernel)|>pu) #ones(r_type,n-1,n-1)
+kappa = r_type.(generate_kappa!(n, m; type=kappa_type, smooth=smooth, threshold=kappa_threshold, kernel=k_kernel)|>pu)
 println("after kappa")
 omega = r_type(2*pi*f);
 gamma = gamma_val*2*pi * ones(r_type,size(kappa))
 gamma = r_type.(absorbing_layer!(gamma, pad_cells, omega))|>pu
 
 _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma)
-x_true = randn(c_type, n-1,m-1,1,1)
+x_true = randn(c_type, n+1,m+1,1,1)
 b = helmholtz_chain!(x_true, helmholtz_matrix; h=h)
 
-x_vcycle, x_vcycle_channels = generate_jacobi!(n, m, kappa, omega, gamma, b)
+x_vcycle, x_vcycle_channels = generate_jacobi!(n, m, h, kappa, omega, gamma, b)
 
