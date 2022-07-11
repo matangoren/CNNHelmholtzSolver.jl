@@ -185,13 +185,13 @@ end
 function get2DLinearModel(n::Int, m::Int; top_lb=1.65, top_ub=1.75, bottom_lb=2.5, bottom_ub=3.5, absorbing_val=1.5)
     top_val = rand(Uniform(top_lb, top_ub))
     bottom_val = rand(Uniform(bottom_lb, bottom_ub))
-    model = range(top_val,stop=bottom_val,length=n+1) * ones(m+1)';
+    model = range(top_val,stop=bottom_val,length=n+1) * ones(m+1)'; # flip this
 
     #adding absorbing layers
     num_layers = rand(2:7)
     model[1:num_layers,:] .= absorbing_val
 
-    # display(heatmap(model, color=:jet, yflip=true)) # ask Eran about this
+    # figure(); imshow(x, cmap=:jet);colorbar(); clim(1.5,4.5); PyPlot.savefig("./gg")
 
     return model
 end

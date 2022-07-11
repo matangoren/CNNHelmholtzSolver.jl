@@ -15,6 +15,7 @@ function get_data_x_y(dataset, n, m, gamma)
     return x, y
 end
 
+# (331,661) with gamma with NeumannOnTop=true
 
 function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
                             train_size, test_size, batch_size, iterations, init_lr;
