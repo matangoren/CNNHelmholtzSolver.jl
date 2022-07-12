@@ -54,12 +54,12 @@ function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter =
         gamma_coarse = down(reshape(gamma, n+1, m+1, 1, 1)|>pu)[:,:,1,1]
 
         # Recursive operation of the method on the coarse grid
-        n_coarse = size(residual_coarse,1)+1
-        m_coarse = size(residual_coarse,2)+1
-        x_coarse = zeros(c_type,n_coarse-1, m_coarse-1)|>pu
+        n_coarse = size(residual_coarse,1)-1
+        m_coarse = size(residual_coarse,2)-1
+        x_coarse = zeros(c_type,n_coarse+1, m_coarse+1)|>pu
 
         for i = 1:u
-            x_coarse, helmholtz_matrix_coarse = v_cycle_helmholtz!(n_coarse, m_coarse, h*2, x_coarse, residual_coarse, kappa_coarse, omega, gamma_coarse; use_gmres_alpha = use_gmres_alpha,
+            x_coarse, helmholtz_matrix_coarse = v_cycle_helmholtz!(n_coarse, m_coarse, h.*2, x_coarse, residual_coarse, kappa_coarse, omega, gamma_coarse; use_gmres_alpha = use_gmres_alpha,
                                                                     u=u, v1_iter=v1_iter, v2_iter=v2_iter, log=log, level = (level == nothing ? nothing : (level-1)))
         end
         x_coarse_matrix = reshape(x_coarse, n_coarse+1, m_coarse+1, 1, 1)
@@ -114,9 +114,9 @@ function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_
         residual_coarse = down(reshape(residual_fine, n+1, m+1, 1, 1)|>pu)[:,:,1,1]
 
         # Recursive operation of the method on the coarse grid
-        n_coarse = size(residual_coarse,1)+1
-        m_coarse = size(residual_coarse,2)+1
-        x_coarse = zeros(c_type,n_coarse-1, m_coarse-1)|>pu
+        n_coarse = size(residual_coarse,1)-1
+        m_coarse = size(residual_coarse,2)-1
+        x_coarse = zeros(c_type,n_coarse+1, m_coarse+1)|>pu
 
         for i = 1:u
             x_coarse, _ = v_cycle_helmholtz!(n_coarse, m_coarse, h*2, x_coarse, residual_coarse, h_matrix_level1, sl_matrix_level1, h_matrix_level2, sl_matrix_level2, h_matrix_level3, sl_matrix_level3; use_gmres_alpha = use_gmres_alpha,

@@ -30,12 +30,13 @@ BatchNormWrap(out_ch) = Chain(x->expand_dims(x,2)|>cgpu,
                                 x->squeeze(x))|> cgpu
 
 
-ConvDown(in_chs,out_chs;kernel = (5,5), σ=elu) = Chain(Conv(kernel, in_chs=>out_chs, stride=(2,2), pad = 1; init=_random_normal),
+# check with pad=2 and in up to.
+ConvDown(in_chs,out_chs;kernel = (5,5), σ=elu) = Chain(Conv(kernel, in_chs=>out_chs, stride=(2,2), pad = 2; init=_random_normal),
                                                         BatchNorm(out_chs), 
                                                         x->(σ == elu ? σ.(x,0.2f0) : σ.(x)))|> cgpu
 
 ConvUp(in_chs,out_chs;kernel = (5,5), σ=elu) = Chain(x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
-                                                    ConvTranspose(kernel, in_chs=>out_chs, stride=(2, 2), pad = 1; init=_random_normal), 
+                                                    ConvTranspose(kernel, in_chs=>out_chs, stride=(2, 2), pad = 2; init=_random_normal), 
                                                     BatchNorm(out_chs))|> cgpu
 
                                                     
@@ -49,7 +50,7 @@ end
 
 UNetUpBlock(in_chs::Int, out_chs::Int; kernel = (5, 5), p = 0.5f0, σ=elu) =
     UNetUpBlock(Chain(x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
-                    ConvTranspose(kernel, in_chs=>out_chs, stride=(2, 2), pad = 1; init=_random_normal),
+                    ConvTranspose(kernel, in_chs=>out_chs, stride=(2, 2), pad = 2; init=_random_normal),
                     BatchNorm(out_chs)))|> cgpu
 
 UNetConvBlock(in_chs, out_chs; kernel = (3, 3), pad=1, σ=elu) =
@@ -236,13 +237,20 @@ function (u::TFFKappa)(x::AbstractArray)
     up_x3 = u.conv_blocks[9](x3)
     up_x3 = u.conv_blocks[10](up_x3)
     up_x3 = u.conv_blocks[11](up_x3)
-
+    println("size of op $(size(op))")
+    println("size of x1 $(size(x1))")
+    println("size of x2 $(size(x2))")
+    println("size of x3 $(size(x3))")
+    println("size of up_x3 $(size(up_x3))")
     # (n/16) X (n/16) X 128 X bs -> (n/8) X (n/8) X 128 X bs
     up_x1 = u.conv_blocks[15](u.up_blocks[1](up_x3, x2))
+    println("size of up_x1 $(size(up_x1))")
     # (n/8) X (n/8) X 128 X bs -> (n/4) X (n/4) X 64 X bs
     up_x2 = u.conv_blocks[14](u.up_blocks[2](up_x1, x1))
+    println("size of up_x2 $(size(up_x2))")
     # (n/4) X (n/4) X 128 X bs -> (n/2) X (n/2) X 32 X bs
     up_x4 = u.conv_blocks[13](u.up_blocks[3](up_x2, op))
+    println("size of up_x4 $(size(up_x4))")
 
     return [op, x1, x2, up_x3, up_x1, up_x2, up_x4]
 end

@@ -11,6 +11,7 @@ function generate_vcycle!(n, m, h, kappa, omega, gamma, b; v2_iter=10, level=3, 
     sl_matrix_level2, h_matrix_level2 = get_helmholtz_matrices!(kappa_coarse, omega, gamma_coarse; alpha=r_type(0.5))
     kappa_coarse = down(reshape(kappa_coarse, Int64((n/2)+1),  Int64((m/2)+1), 1, 1)|>pu)[:,:,1,1]
     gamma_coarse = down(reshape(gamma_coarse,  Int64((n/2)+1),  Int64((m/2)+1), 1, 1)|>pu)[:,:,1,1]
+
     sl_matrix_level1, h_matrix_level1 = get_helmholtz_matrices!(kappa_coarse, omega, gamma_coarse; alpha=r_type(0.5))
 
     A(v::a_type) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, 1), h_matrix_level3; h=h))
@@ -101,7 +102,7 @@ function generate_random_data!(data_set_m, n, m, h, kappa, omega, gamma; e_vcycl
             r_vcycle, e_true = generate_r_vcycle!(n, m, h, kappa, omega, gamma, x_true;restrt=gmres_restrt, jac=jac)
         end
 
-        r_vcycle = r_type(h[1]^2) .* r_vcycle
+        r_vcycle = mean(h) .* r_vcycle
         if norm_input == true
             norm_r = r_type(norm(r_vcycle))
             r_vcycle = r_vcycle ./ norm_r

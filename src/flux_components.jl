@@ -28,13 +28,13 @@ end
 
 # block_laplacian_filter = block_filter!(3, get_laplacian_filter(h), 2)
 
-up = ConvTranspose(smooth_up_filter, true, stride=2)|> pu
-down = Conv(smooth_down_filter, true, stride=2)|> pu
+up = ConvTranspose(smooth_up_filter, true, stride=2,pad=1)|> pu
+down = Conv(smooth_down_filter, true, stride=2,pad=1)|> pu
 
-block_up = ConvTranspose(block_filter!(3, smooth_up_filter, 2), true, stride=2)
-block_down = Conv(block_filter!(3, smooth_down_filter, 2), true, stride=2)
+block_up = ConvTranspose(block_filter!(3, smooth_up_filter, 2), true, stride=2,pad=1)
+block_down = Conv(block_filter!(3, smooth_down_filter, 2), true, stride=2,pad=1)
 
-i_conv = Conv(block_filter!(1, reshape([1.0],1,1,1,1), 2),true)|> pu
+# i_conv = Conv(block_filter!(1, reshape([1.0],1,1,1,1), 2),true,pad=1)|> pu
 
 # check how to perform mirroring padding
 function laplacian_conv!(grid; h=[0.0225 ; 0.014])
