@@ -3,48 +3,50 @@ using BSON: @save
 include("losses.jl")
 
 function get_data_x_y(dataset, n, m, gamma)
-    x = zeros(r_type, n-1, m-1, 4, size(dataset,1)) |> pu
-    y = zeros(r_type, n-1, m-1, 2, size(dataset,1)) |> pu
+    x = zeros(r_type, n+1, m+1, 4, size(dataset,1)) |> pu
+    y = zeros(r_type, n+1, m+1, 2, size(dataset,1)) |> pu
 
     for i=1:size(dataset,1)
         x[:,:,1:3,i] = dataset[i][1]
-        x[:,:,4,i] = gamma
+        x[:,:,4,i] = gamma # Eran said to train without gamma
         y[:,:,:,i] = dataset[i][2]
     end
 
     return x, y
 end
 
+# (331,661) with gamma with NeumannOnTop=true
 
-function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
+function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
                             train_size, test_size, batch_size, iterations, init_lr;
                             e_vcycle_input=true, v2_iter=10, level=3, data_augmentetion=true, kappa_type=1, threshold=50,
                             kappa_input=true, kappa_smooth=false, k_kernel=3, gamma_input=false, kernel=(3,3), smaller_lr=10, axb=false, jac=false, norm_input=false,
-                            model_type=SUnet, k_type=NaN, k_chs=-1, indexes=3, data_train_path="", data_test_path="", full_loss=false, residual_loss=false, error_details=false, gmres_restrt=1, σ=elu, in_tuning=false) #, model=NaN)
+                            model_type=SUnet, k_type=NaN, k_chs=-1, indexes=3, data_train_path="", data_test_path="", full_loss=false, residual_loss=false, error_details=false, gmres_restrt=1, σ=elu, in_tuning=false, linear_kappa=true) #, model=NaN)
 
     @info "$(Dates.format(now(), "HH:MM:SS")) - Start Train $(test_name)"
 
     if data_train_path != ""
-        train_set = get_csv_set!(data_train_path, train_size, n, m)
+        train_set = get_csv_set!(data_train_path, train_size, n, m, h)
     else
-        train_set = generate_random_data!(train_size, n, m, kappa, omega, gamma;
+        train_set = generate_random_data!(train_size, n, m, h, kappa, omega, gamma;
                                                 e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, data_augmentetion =data_augmentetion,
-                                                kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=in_tuning)
+                                                kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=in_tuning, linear_kappa=linear_kappa)
     end
     if data_test_path != ""
-        test_set = get_csv_set!(data_test_path, test_size, n, m)
+        test_set = get_csv_set!(data_test_path, test_size, n, m, h)
     else
-        test_set = generate_random_data!(test_size, n, m, kappa, omega, gamma;
+        test_set = generate_random_data!(test_size, n, m, h, kappa, omega, gamma;
                                                 e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level,
-                                                kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=in_tuning)
+                                                kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=in_tuning, linear_kappa=linear_kappa)
     end
     @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
     mkpath("models")
 
-    println("AFTER DATA GENERATION $(CUDA.available_memory() / 1e9)")
+    # println("AFTER DATA GENERATION $(CUDA.available_memory() / 1e9)")
     train_set_x, train_set_y = get_data_x_y(train_set, n, m, gamma)
     test_set_x, test_set_y = get_data_x_y(train_set, n, m, gamma)
-    println("AFTER DATA x_y $(CUDA.available_memory() / 1e9)")
+    # println("AFTER DATA x_y $(CUDA.available_memory() / 1e9)")
+
     batchs = floor(Int64,train_size / batch_size) # (batch_size*10))
     test_loss = zeros(iterations)
     train_loss = zeros(iterations) 
@@ -72,20 +74,15 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
 
     for iteration in 1:iterations
         println("===== iteration #$(iteration)/$(iterations) =====")
-        println("GPU usage $(CUDA.available_memory() / 1e9)")
+        # println("GPU usage $(CUDA.available_memory() / 1e9)")
         if mod(iteration,smaller_lr) == 0
             lr = lr / 2
             opt = RADAM(lr)
             batch_size = min(batch_size * 2,512)
-            # batchs = floor(Int64,train_size / min((batch_size),train_size)) #*10
             smaller_lr = ceil(Int64,smaller_lr / 2)
             @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr) Batch Size $(batch_size)"
         end
-        # if mod(iteration, smaller_lr) == 0
-        #     lr = lr / 5
-        #     opt = RADAM(lr)
-        #     @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr)"
-        # end
+        
 
         Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
         
@@ -96,7 +93,7 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
         @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Train loss value = $(train_loss[iteration]) , Test loss value = $(test_loss[iteration])"
 
         if mod(iteration,30) == 0
-            println("GPU usage BEFORE saving $(CUDA.available_memory() / 1e9)")
+            # println("GPU usage BEFORE saving $(CUDA.available_memory() / 1e9)")
 
             model = model|>cpu
             @save "models/$(test_name).bson" model
@@ -104,7 +101,7 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
 
             model = model|>cgpu
 
-            println("GPU usage AFTER saving $(CUDA.available_memory() / 1e9)")
+            # println("GPU usage AFTER saving $(CUDA.available_memory() / 1e9)")
 
         end
     end
@@ -116,133 +113,3 @@ function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
     model = model|>cgpu
     return model, train_loss, test_loss
 end
-
-
-#=
-Yael's training function
-function train_residual_unet!(model, test_name, n, m, f, kappa, omega, gamma,
-                            train_size, test_size, batch_size, iterations, init_lr;
-                            e_vcycle_input=true, v2_iter=10, level=3, data_augmentetion=true, kappa_type=1, threshold=50,
-                            kappa_input=true, kappa_smooth=false, k_kernel=3, gamma_input=false, kernel=(3,3), smaller_lr=10, axb=false, jac=false, norm_input=false,
-                            model_type=SUnet, k_type=NaN, k_chs=-1, indexes=3, data_path="", full_loss=false, residual_loss=false, error_details=false, gmres_restrt=1, σ=elu) #, model=NaN)
-    @info "$(Dates.format(now(), "HH:MM:SS")) - Start Train $(test_name)"
-    if data_path != ""
-        train_set = get_csv_set!(data_path, n, train_size)
-        test_set = get_csv_set!(data_path, n, test_size)
-    else
-        train_set = generate_random_data!(train_size, n, m, kappa, omega, gamma;
-                                                e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, data_augmentetion =data_augmentetion,
-                                                kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt)
-        test_set = generate_random_data!(test_size, n, m, kappa, omega, gamma;
-                                                e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level,
-                                                kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt)
-    end
-    @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
-    mkpath("models")
-    println("train set size: ", size(train_set))
-    println("train set type: ", typeof(train_set))
-    println("train set element size: ", size(train_set[1][1]))
-    train_set_x = zeros(r_type, 127, 127, 4, 10)
-    train_set_y = zeros(r_type, 127, 127, 2, 10)
-    for k=1:10
-        train_set_x[:,:,1:3,k] = train_set[k][1]
-        train_set_x[:,:,4,k] = gamma
-        train_set_y[:,:,:,k] = train_set[k][2]
-    end
-    println("train set x size: ", size(train_set_x))
-    println("train set x type: ", typeof(train_set_x[1]))
-    println("train set y size: ", size(train_set_y))
-    println("train set y type: ", typeof(train_set_y))
-    # if model == NaN
-    #     model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, k_chs=k_chs, indexes=indexes, σ=σ)|>cgpu
-    # end
-    #
-    batchs = floor(Int64,train_size / batch_size) # (batch_size*10))
-    test_loss = zeros(iterations)
-    train_loss = zeros(iterations)
-    CSV.write("$(test_name) loss.csv", DataFrame(Train=[], Test=[]), delim = ';')
-    errors_count = 4
-    if errors_count > 1 && full_loss == true
-        # CSV.write("$(test_name) loss.csv", DataFrame(Train=[],Train_U1=[],Train_J1=[],Train_U2=[],Train_J2=[],Train_U3=[],Train_J3=[],Test=[]), delim = ';') # ,Test_U1=[],Test_J1=[],Test_U2=[],Test_J2=[])
-        # CSV.write("$(test_name) loss.csv", DataFrame(Train=[],Train_E=[],Train_R=[],Test=[],Test_E=[],Test_R=[]), delim = ';') # ,Test_U1=[],Test_J1=[],Test_U2=[],Test_J2=[])
-        CSV.write("test/unet/results/$(test_name) loss.csv", DataFrame(Train=[],Train_U1=[],Train_U2=[],Train_J2=[],Test=[]), delim = ';')
-    end
-    if residual_loss == true
-        CSV.write("$(test_name) loss.csv", DataFrame(Train=[], Residual=[], Error=[], Test=[]), delim = ';')
-    end
-    loss!(x, y) = error_loss!(model, x, y)
-    full_loss!(x, y) = full_solution_loss1!(model, x, y, n, m, f)
-    r_loss!(x ,y) = error_residual_loss!(model, n, m, f, x, y)
-    loss!(tuple) = loss!(tuple[1], tuple[2])
-    full_loss_details!(tuple) = full_solution_loss_details1!(model, tuple[1], tuple[2], n, m, f)
-    r_loss_details!(tuple) = error_residual_loss_details!(model, n, m, f, tuple[1], tuple[2])
-    # Start model training
-    append_gamma!(tuple) = append_input!(tuple,gamma)
-    lr = init_lr
-    opt = RADAM(lr)
-    for iteration in 1:iterations
-        if mod(iteration,smaller_lr) == 0
-            lr = lr / 10
-            opt = RADAM(lr)
-            batch_size = min(batch_size * 2,512)
-            batchs = floor(Int64,train_size / min((batch_size),train_size)) #*10
-            smaller_lr = ceil(Int64,smaller_lr / 2)
-            @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr) Batch Size $(batch_size)"
-        end
-        idxs = randperm(train_size)
-        data_loader = DataLoader((train_set_x,train_set_y), batchsize=batch_size, shuffle=true)
-        for (d_x,d_y) in data_loader
-            println("d_x size:", size(d_x))
-            println("d_x type:", typeof(d_x))
-            println("d_y size:", size(d_y))
-            println("d_y type:", typeof(d_y))
-        end
-        Flux.train!(loss!, Flux.params(model), data_loader, RADAM(lr), cb = () -> println("training"))
-        # for batch_idx in 1:batchs
-        #     batch_set = train_set[idxs[(batch_idx-1)*batch_size+1:batch_idx*batch_size]]
-        #     if gamma_input == true
-        #         batch_set = append_gamma!.(batch_set)
-        #     end
-        #     batch_set = convert_input!.(batch_set) |>cgpu
-        #     if full_loss == true
-        #         Flux.train!(full_loss!, Flux.params(model), batch_set, RADAM(lr))
-        #     elseif residual_loss == true
-        #         Flux.train!(r_loss!, Flux.params(model), batch_set, RADAM(lr))
-        #     else
-        #         Flux.train!(loss!, Flux.params(model), batch_set, RADAM(lr))
-        #     end
-        # end
-        if full_loss == true
-            test_res = batch_loss!(test_set, full_loss_details!;errors_count=errors_count,gamma_input=gamma_input,append_gamma=append_gamma!)
-            train_res = batch_loss!(train_set, full_loss_details!;errors_count=errors_count,gamma_input=gamma_input,append_gamma=append_gamma!)
-            test_loss[iteration] = test_res[1]
-            train_loss[iteration] = train_res[1]
-            CSV.write("$(test_name) loss.csv", DataFrame(Train=[train_res[1]],Train_U1=[train_res[2]],Train_U2=[train_res[3]],Train_J2=[train_res[4]],Test=[test_res[1]]), delim = ';', append=true)
-            # CSV.write("$(test_name) loss.csv", DataFrame(Train=[train_res[1]],Train_U1=[train_res[2]],Train_J1=[train_res[3]],Train_U2=[train_res[4]],Train_J2=[train_res[5]],Train_U3=[train_res[6]],Train_J3=[train_res[7]],Test=[test_res[1]]), delim = ';', append=true)
-            #CSV.write("$(test_name) loss.csv", DataFrame(Train=[train_res[1]],Train_E=[train_res[2]],Train_R=[train_res[3]],Test=[test_res[1]],Test_E=[test_res[2]],Test_R=[test_res[3]]), delim = ';', append=true)
-        elseif residual_loss == true
-            test_res = batch_loss!(test_set, r_loss_details!;gamma_input=gamma_input,append_gamma=append_gamma!)
-            train_res = batch_loss!(train_set, r_loss_details!;gamma_input=gamma_input,append_gamma=append_gamma!)
-            test_loss[iteration] = test_res[1]
-            train_loss[iteration] = train_res[1]
-            CSV.write("$(test_name) loss.csv", DataFrame(Train=[train_res[1]], Residual=[train_res[2]], Error=[train_res[3]], Test=[test_res[1]]), delim = ';',append=true)
-        else
-            test_loss[iteration] = batch_loss!(test_set, loss!;gamma_input=gamma_input,append_gamma=append_gamma!)[1]
-            train_loss[iteration] = batch_loss!(train_set, loss!;gamma_input=gamma_input,append_gamma=append_gamma!)[1]
-            CSV.write("$(test_name) loss.csv", DataFrame(Train=[train_loss[iteration]], Test=[test_loss[iteration]]), delim = ';',append=true)
-        end
-        @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Train loss value = $(train_loss[iteration]) , Test loss value = $(test_loss[iteration])"
-        if mod(iteration,30) == 0
-            model = model|>cpu
-            @save "models/$(test_name).bson" model
-            @info "$(Dates.format(now(), "HH:MM:SS")) - Save Model $(test_name).bson"
-            model = model|>cgpu
-        end
-    end
-    model = model|>cpu
-    @save "models/$(test_name).bson" model
-    @info "$(Dates.format(now(), "HH:MM:SS")) - Save Model $(test_name).bson"
-    model = model|>cgpu
-    return model, train_loss, test_loss
-end
-=#

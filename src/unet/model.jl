@@ -30,12 +30,13 @@ BatchNormWrap(out_ch) = Chain(x->expand_dims(x,2)|>cgpu,
                                 x->squeeze(x))|> cgpu
 
 
-ConvDown(in_chs,out_chs;kernel = (5,5), σ=elu) = Chain(Conv(kernel, in_chs=>out_chs, stride=(2,2), pad = 1; init=_random_normal),
+# check with pad=2 and in up to.
+ConvDown(in_chs,out_chs;kernel = (5,5), σ=elu) = Chain(Conv(kernel, in_chs=>out_chs, stride=(2,2), pad = 2; init=_random_normal),
                                                         BatchNorm(out_chs), 
                                                         x->(σ == elu ? σ.(x,0.2f0) : σ.(x)))|> cgpu
 
 ConvUp(in_chs,out_chs;kernel = (5,5), σ=elu) = Chain(x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
-                                                    ConvTranspose(kernel, in_chs=>out_chs, stride=(2, 2), pad = 1; init=_random_normal), 
+                                                    ConvTranspose(kernel, in_chs=>out_chs, stride=(2, 2), pad = 2; init=_random_normal), 
                                                     BatchNorm(out_chs))|> cgpu
 
                                                     
@@ -49,7 +50,7 @@ end
 
 UNetUpBlock(in_chs::Int, out_chs::Int; kernel = (5, 5), p = 0.5f0, σ=elu) =
     UNetUpBlock(Chain(x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
-                    ConvTranspose(kernel, in_chs=>out_chs, stride=(2, 2), pad = 1; init=_random_normal),
+                    ConvTranspose(kernel, in_chs=>out_chs, stride=(2, 2), pad = 2; init=_random_normal),
                     BatchNorm(out_chs)))|> cgpu
 
 UNetConvBlock(in_chs, out_chs; kernel = (3, 3), pad=1, σ=elu) =
