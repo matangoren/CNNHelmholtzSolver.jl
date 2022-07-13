@@ -15,7 +15,6 @@ function get_data_x_y(dataset, n, m, gamma)
     return x, y
 end
 
-# (331,661) with gamma with NeumannOnTop=true
 
 function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
                             train_size, test_size, batch_size, iterations, init_lr;
@@ -42,11 +41,14 @@ function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
     @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
     mkpath("models")
 
-    # println("AFTER DATA GENERATION $(CUDA.available_memory() / 1e9)")
+    if use_gpu == true
+        println("AFTER DATA GENERATION $(CUDA.available_memory() / 1e9)")
+    end
     train_set_x, train_set_y = get_data_x_y(train_set, n, m, gamma)
     test_set_x, test_set_y = get_data_x_y(train_set, n, m, gamma)
-    # println("AFTER DATA x_y $(CUDA.available_memory() / 1e9)")
-
+    if use_gpu == true
+        println("AFTER DATA x_y $(CUDA.available_memory() / 1e9)")
+    end
     batchs = floor(Int64,train_size / batch_size) # (batch_size*10))
     test_loss = zeros(iterations)
     train_loss = zeros(iterations) 
@@ -74,7 +76,9 @@ function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
 
     for iteration in 1:iterations
         println("===== iteration #$(iteration)/$(iterations) =====")
-        # println("GPU usage $(CUDA.available_memory() / 1e9)")
+        if use_gpu == true
+            println("GPU usage $(CUDA.available_memory() / 1e9)")
+        end
         if mod(iteration,smaller_lr) == 0
             lr = lr / 2
             opt = RADAM(lr)
@@ -93,16 +97,17 @@ function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
         @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Train loss value = $(train_loss[iteration]) , Test loss value = $(test_loss[iteration])"
 
         if mod(iteration,30) == 0
-            # println("GPU usage BEFORE saving $(CUDA.available_memory() / 1e9)")
-
+            if use_gpu == true
+                println("GPU usage BEFORE saving $(CUDA.available_memory() / 1e9)")
+            end
             model = model|>cpu
             @save "models/$(test_name).bson" model
             @info "$(Dates.format(now(), "HH:MM:SS")) - Save Model $(test_name).bson"
 
             model = model|>cgpu
-
-            # println("GPU usage AFTER saving $(CUDA.available_memory() / 1e9)")
-
+            if use_gpu==true
+                println("GPU usage AFTER saving $(CUDA.available_memory() / 1e9)")
+            end
         end
     end
 

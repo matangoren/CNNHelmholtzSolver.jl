@@ -13,7 +13,7 @@ using Dates
 using Random
 using CUDA
 
-use_gpu = false
+use_gpu = true
 if use_gpu == true
     # CUDA.allowscalar(false)
     cgpu = gpu
