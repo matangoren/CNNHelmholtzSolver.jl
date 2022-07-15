@@ -13,13 +13,14 @@ using Dates
 using Random
 using CUDA
 
+pyplot()
+
 use_gpu = true
 if use_gpu == true
     # CUDA.allowscalar(false)
     cgpu = gpu
 else
     cgpu = cpu
-    pyplot()
 end
 
 pu = cpu # gpu
@@ -114,15 +115,15 @@ end
 
 init_lr = 0.0001
 opt = RADAM(init_lr)
-train_size = 10#10000
-test_size = 10#100
-batch_size = 5
-iterations = 2
+train_size = 4 #5000
+test_size = 4 #100
+batch_size = 2 #20
+iterations = 1 #120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
 blocks = 10
-n = 128
-m = 128
+n = 256
+m = 512
 
 domain = [0,13.5, 0, 4.2]
 h = r_type.([(domain[4]-domain[3])./ n, (domain[2]-domain[1])./ m])

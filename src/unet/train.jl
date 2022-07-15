@@ -1,14 +1,15 @@
 using BSON: @save
 
 include("losses.jl")
+include("UnetDataset.jl")
 
 function get_data_x_y(dataset, n, m, gamma)
-    x = zeros(r_type, n+1, m+1, 4, size(dataset,1)) |> pu
-    y = zeros(r_type, n+1, m+1, 2, size(dataset,1)) |> pu
+    x = zeros(r_type, n+1, m+1, 4, size(dataset,1)) #|> pu
+    y = zeros(r_type, n+1, m+1, 2, size(dataset,1)) #|> pu
 
     for i=1:size(dataset,1)
         x[:,:,1:3,i] = dataset[i][1]
-        x[:,:,4,i] = gamma # Eran said to train without gamma
+        x[:,:,4,i] = gamma
         y[:,:,:,i] = dataset[i][2]
     end
 
@@ -44,8 +45,14 @@ function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
     if use_gpu == true
         println("AFTER DATA GENERATION $(CUDA.available_memory() / 1e9)")
     end
-    train_set_x, train_set_y = get_data_x_y(train_set, n, m, gamma)
-    test_set_x, test_set_y = get_data_x_y(train_set, n, m, gamma)
+
+    println("type of train_set $(typeof(train_set)) and it's size is $(size(train_set))")
+    train_dataset = UnetDataset(train_set, gamma)
+    test_dataset = UnetDataset(test_set, gamma)
+
+    # train_set_x, train_set_y = get_data_x_y(train_set, n, m, gamma)
+    # test_set_x, test_set_y = get_data_x_y(train_set, n, m, gamma)
+
     if use_gpu == true
         println("AFTER DATA x_y $(CUDA.available_memory() / 1e9)")
     end
@@ -71,8 +78,11 @@ function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
     lr = init_lr
     opt = RADAM(lr)
 
-    train_data_loader = DataLoader((train_set_x, train_set_y), batchsize=batch_size, shuffle=true)
-    test_data_loader = DataLoader((test_set_x, test_set_y), batchsize=batch_size, shuffle=false)
+    # train_data_loader = DataLoader((train_set_x, train_set_y), batchsize=batch_size, shuffle=true)
+    # test_data_loader = DataLoader((test_set_x, test_set_y), batchsize=batch_size, shuffle=false)
+
+    train_data_loader = DataLoader(train_dataset, batchsize=batch_size, shuffle=true)
+    test_data_loader = DataLoader(test_dataset, batchsize=batch_size, shuffle=false)
 
     for iteration in 1:iterations
         println("===== iteration #$(iteration)/$(iterations) =====")
