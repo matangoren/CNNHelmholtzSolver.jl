@@ -115,10 +115,10 @@ end
 
 init_lr = 0.0001
 opt = RADAM(init_lr)
-train_size = 4 #5000
-test_size = 4 #100
-batch_size = 2 #20
-iterations = 1 #120
+train_size = 1000
+test_size = 100
+batch_size = 20
+iterations = 120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
 blocks = 10
