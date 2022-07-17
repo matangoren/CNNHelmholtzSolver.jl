@@ -4,8 +4,8 @@ include("losses.jl")
 # include("UnetDataset.jl")
 
 function get_data_x_y(dataset, n, m, gamma)
-    x = zeros(r_type, n+1, m+1, 4, size(dataset,1)) |> pu
-    y = zeros(r_type, n+1, m+1, 2, size(dataset,1)) |> pu
+    x = cpu(zeros(r_type, n+1, m+1, 4, size(dataset,1)))
+    y = cpu(zeros(r_type, n+1, m+1, 2, size(dataset,1)))
 
     for i=1:size(dataset,1)
         x[:,:,1:3,i] = dataset[i][1]
@@ -92,14 +92,14 @@ function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
         if mod(iteration,smaller_lr) == 0
             lr = lr / 2
             opt = RADAM(lr)
-            batch_size = min(batch_size * 2,512)
+            # batch_size = min(batch_size * 2,512)
             smaller_lr = ceil(Int64,smaller_lr / 2)
             @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr) Batch Size $(batch_size)"
         end
         
 
         Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
-        
+
         train_loss[iteration] = dataset_loss!(train_data_loader, loss!) / size(train_set,1)
         test_loss[iteration] = dataset_loss!(test_data_loader, loss!) / size(test_set,1)
 

@@ -77,14 +77,14 @@ function generate_random_data!(data_set_m, n, m, h, kappa, omega, gamma; e_vcycl
                                                           kappa_type=1, threshold=50, kappa_input=true, kappa_smooth=false, k_kernel=3, axb=false, jac=false, norm_input=false, gmres_restrt=1, same_kappa=false, linear_kappa=true)
 
 
-    dataset = Tuple[]
+    dataset = Tuple[] |> pu
     data_set_m = data_augmentetion == true ? floor(Int32,0.75*data_set_m) : data_set_m
     for i = 1:data_set_m
         
         # Generate Model
         if same_kappa == false
             if linear_kappa == true
-                kappa = get2DLinearModel(n,m)
+                kappa = get2DLinearModel(n,m) |> pu
             else
                 kappa = generate_kappa!(n,m; type=kappa_type, smooth=kappa_smooth, threshold=threshold, kernel=k_kernel)|>pu
             end
@@ -110,7 +110,7 @@ function generate_random_data!(data_set_m, n, m, h, kappa, omega, gamma; e_vcycl
         end
 
         # Print scale information
-        if mod(i,5000) == 0
+        if mod(i,1000) == 0
             if axb == true
                 @info "$(Dates.format(now(), "HH:MM:SS")) - i = $(i) norm b = $(norm(r_vcycle)) norm x = $(norm(e_true))"
             else
@@ -130,7 +130,7 @@ function generate_random_data!(data_set_m, n, m, h, kappa, omega, gamma; e_vcycl
         end
 
         input = kappa_input == true ? cat(input, reshape(kappa, n+1, m+1, 1, 1), dims=3) : input
-        append!(dataset,[(input, e_true_channels)])
+        append!(dataset,[(input |> pu, e_true_channels |> pu)])
 
         # Data Augmentetion
         if data_augmentetion == true && mod(i,3) == 0
@@ -144,7 +144,7 @@ function generate_random_data!(data_set_m, n, m, h, kappa, omega, gamma; e_vcycl
 
             input_t = (scalar*input+(1-scalar)*input_2)*scale
             e_t = (scalar*e_true_channels+(1-scalar)*e_2)*scale
-            append!(dataset,[(input_t, e_t)])
+            append!(dataset,[(input_t |> pu, e_t |> pu)])
         end
     end
     return dataset

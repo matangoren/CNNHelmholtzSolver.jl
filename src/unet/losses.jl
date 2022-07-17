@@ -3,9 +3,9 @@ function norm_diff!(x,y)
 end
 
 function error_loss!(model, input, output; in_tuning=false)
-
     model_result = model(input |> cgpu; in_tuning=in_tuning)
-    return norm_diff!(model_result, output|>cgpu)
+    
+    return norm_diff!(model_result, output |> cgpu)
 end
 
 function dataset_loss!(dataloader, loss_func)

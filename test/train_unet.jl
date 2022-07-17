@@ -47,7 +47,7 @@ function test_train_unet!(n, m, h, f, opt, init_lr, train_size, test_size, batch
                                     axb=false, norm_input=false, model_type=SUnet, k_type=NaN, resnet_type=SResidualBlock, k_chs=-1, indexes=3, data_path="", full_loss=false, residual_loss=false, gmres_restrt=1, σ=elu, arch=1)
 
     gamma_val = 0.00001
-    pad_cells = [10;10]
+    pad_cells = [24;24] #[10;10]
     kappa = r_type.(ones(r_type,n+1, m+1)|>pu)
     omega = r_type(2*pi*f);
     gamma = gamma_val*2*pi * ones(r_type,size(kappa))
@@ -115,9 +115,9 @@ end
 
 init_lr = 0.0001
 opt = RADAM(init_lr)
-train_size = 1000
+train_size = 100
 test_size = 100
-batch_size = 20
+batch_size = 10
 iterations = 120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
