@@ -77,14 +77,14 @@ function generate_random_data!(data_set_m, n, m, h, kappa, omega, gamma; e_vcycl
                                                           kappa_type=1, threshold=50, kappa_input=true, kappa_smooth=false, k_kernel=3, axb=false, jac=false, norm_input=false, gmres_restrt=1, same_kappa=false, linear_kappa=true)
 
 
-    dataset = Tuple[] |> pu
+    dataset = Tuple[]
     data_set_m = data_augmentetion == true ? floor(Int32,0.75*data_set_m) : data_set_m
     for i = 1:data_set_m
         
         # Generate Model
         if same_kappa == false
             if linear_kappa == true
-                kappa = get2DLinearModel(n,m) |> pu
+                kappa = get2DSlowSquaredLinearModel(n,m)|>pu
             else
                 kappa = generate_kappa!(n,m; type=kappa_type, smooth=kappa_smooth, threshold=threshold, kernel=k_kernel)|>pu
             end
@@ -130,7 +130,7 @@ function generate_random_data!(data_set_m, n, m, h, kappa, omega, gamma; e_vcycl
         end
 
         input = kappa_input == true ? cat(input, reshape(kappa, n+1, m+1, 1, 1), dims=3) : input
-        append!(dataset,[(input |> pu, e_true_channels |> pu)])
+        append!(dataset,[(input, e_true_channels)])
 
         # Data Augmentetion
         if data_augmentetion == true && mod(i,3) == 0
@@ -170,10 +170,10 @@ end
 
 
 
-function get2DLinearModel(n::Int, m::Int; top_lb=1.65, top_ub=1.75, bottom_lb=2.5, bottom_ub=3.5, absorbing_val=1.5)
+function get2DVelocityLinearModel(n::Int, m::Int; top_lb=1.65, top_ub=1.75, bottom_lb=2.5, bottom_ub=3.5, absorbing_val=1.5)
     top_val = rand(Uniform(top_lb, top_ub))
     bottom_val = rand(Uniform(bottom_lb, bottom_ub))
-    model = range(top_val,stop=bottom_val,length=n+1) * ones(m+1)'; # flip this
+    model = (range(top_val,stop=bottom_val,length=n+1)|>pu) * ((ones(m+1)')|>pu)
 
     #adding sea layers
     num_layers = rand(2:7)
@@ -182,6 +182,11 @@ function get2DLinearModel(n::Int, m::Int; top_lb=1.65, top_ub=1.75, bottom_lb=2.
     # figure(); imshow(x, cmap=:jet);colorbar(); clim(1.5,4.5); PyPlot.savefig("./gg")
 
     return model
+end
+
+function get2DSlowSquaredLinearModel(n::Int, m::Int; top_lb=1.65, top_ub=1.75, bottom_lb=2.5, bottom_ub=3.5, absorbing_val=1.5)
+    velocity_model = get2DVelocityLinearModel(n,m)
+    return (1.0./(velocity_model.+1e-16)).^2
 end
 
 velocityToSlowSquared(v::Array) = (1.0./(v.+1e-16)).^2

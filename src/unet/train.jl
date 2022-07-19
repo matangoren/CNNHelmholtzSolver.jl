@@ -4,8 +4,8 @@ include("losses.jl")
 # include("UnetDataset.jl")
 
 function get_data_x_y(dataset, n, m, gamma)
-    x = cpu(zeros(r_type, n+1, m+1, 4, size(dataset,1)))
-    y = cpu(zeros(r_type, n+1, m+1, 2, size(dataset,1)))
+    x = zeros(r_type, n+1, m+1, 4, size(dataset,1)) |> pu
+    y = zeros(r_type, n+1, m+1, 2, size(dataset,1)) |> pu
 
     for i=1:size(dataset,1)
         x[:,:,1:3,i] = dataset[i][1]
@@ -43,7 +43,8 @@ function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
     mkpath("models")
 
     if use_gpu == true
-        println("AFTER DATA GENERATION $(CUDA.available_memory() / 1e9)")
+        # println("AFTER DATA GENERATION $(CUDA.available_memory() / 1e9)")
+        println("after data generation GPU memory status $(CUDA.memory_status())")
     end
 
     println("type of train_set $(typeof(train_set)) and it's size is $(size(train_set))")
@@ -51,14 +52,15 @@ function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
     # test_dataset = UnetDataset(test_set, gamma)
 
     train_set_x, train_set_y = get_data_x_y(train_set, n, m, gamma)
-    test_set_x, test_set_y = get_data_x_y(train_set, n, m, gamma)
+    test_set_x, test_set_y = get_data_x_y(test_set, n, m, gamma)
 
     if use_gpu == true
-        println("AFTER DATA x_y $(CUDA.available_memory() / 1e9)")
+        # println("AFTER DATA x_y $(CUDA.available_memory() / 1e9)")
+        println("after data x_y GPU memory status $(CUDA.memory_status())")
     end
-    batchs = floor(Int64,train_size / batch_size) # (batch_size*10))
-    test_loss = zeros(iterations)
-    train_loss = zeros(iterations) 
+
+    test_loss = zeros(iterations)|>pu
+    train_loss = zeros(iterations)|>pu
 
     CSV.write("$(test_name) loss.csv", DataFrame(Train=[], Test=[]), delim = ';')
     
@@ -87,7 +89,8 @@ function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
     for iteration in 1:iterations
         println("===== iteration #$(iteration)/$(iterations) =====")
         if use_gpu == true
-            println("GPU usage $(CUDA.available_memory() / 1e9)")
+            # println("GPU usage $(CUDA.available_memory() / 1e9)")
+            println("GPU memory status $(CUDA.memory_status())")
         end
         if mod(iteration,smaller_lr) == 0
             lr = lr / 2
@@ -96,9 +99,16 @@ function train_residual_unet!(model, test_name, n, m, h, f, kappa, omega, gamma,
             smaller_lr = ceil(Int64,smaller_lr / 2)
             @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr) Batch Size $(batch_size)"
         end
-        
 
         Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
+        # ps = Flux.params(model)
+        # for (x,y) in train_data_loader
+        #     gs = gradient(ps) do
+        #       training_loss = loss!(x,y)
+        #       return training_loss
+        #     end
+        #     Flux.update!(opt, ps, gs)
+        # end
 
         train_loss[iteration] = dataset_loss!(train_data_loader, loss!) / size(train_set,1)
         test_loss[iteration] = dataset_loss!(test_data_loader, loss!) / size(test_set,1)
