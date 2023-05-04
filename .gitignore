@@ -1,0 +1,13 @@
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+deps/deps.jl
+*.dat
+*.out
+Ns*
+*.mat
+*.jld
+.idea
+.idea/*
+./datasets
+./datasets/*
