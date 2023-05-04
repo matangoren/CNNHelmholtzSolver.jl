@@ -11,5 +11,5 @@ include("data.jl")
 include("solvers/solver_utils.jl")
 include("solvers/cnn_helmholtz_solver.jl")
 
-# export UNetUpBlock, FFSDNUnet, FFKappa, TFFKappa, TSResidualBlockI, SResidualBlock, FeaturesUNet 
+export UNetUpBlock, FFSDNUnet, FFKappa, TFFKappa, TSResidualBlockI, SResidualBlock, FeaturesUNet 
 end
