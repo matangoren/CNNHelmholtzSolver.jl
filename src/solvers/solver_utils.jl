@@ -71,19 +71,15 @@ function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, ome
     #                                                 M=M_Unet, x=vec(x3), out=1,flexible=true)
     # @info "$(Dates.format(now(), "HH:MM:SS")) - after warm-up" 
     #########################################
-    r = reshape(r_vcycle, n+1, m+1, 1, blocks)
-    e = a_type(zeros(n+1, m+1, 1, blocks))
-    ej = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
-    # println("before gmres $(typeof(r_vcycle)) $(norm(r_vcycle)) $(norm(x_init))")
-    # x3,flag3,err3,iter3,resvec3 =@time fgmres_func(A, vec(r_vcycle), 3, tol=1e-15, maxIter=1,
-    #                                                 M=SM, x=vec(x_init), out=-1,flexible=true)
-    # println("In CNN solve - number of iterations=$(iter3) err1=$(err3)")
-
-    # x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=1e-5, maxIter=max_iter,
-    #                                                         M=M_Unet, x=vec(x3), out=1,flexible=true)
     
-    # println("In CNN solve - number of iterations=$(iter1) err1=$(err1)")
-    # return reshape(x1,(n+1)*(m+1),blocks)|>pu
-    # return M_Unets(r_vcycle)
-    return ej
+    println("before gmres $(typeof(r_vcycle)) $(norm(r_vcycle)) $(norm(x_init))")
+    x3,flag3,err3,iter3,resvec3 =@time fgmres_func(A, vec(r_vcycle), 3, tol=1e-15, maxIter=1,
+                                                    M=SM, x=vec(x_init), out=-1,flexible=true)
+    println("In CNN solve - number of iterations=$(iter3) err1=$(err3)")
+
+    x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=1e-5, maxIter=max_iter,
+                                                            M=M_Unet, x=vec(x3), out=1,flexible=true)
+    
+    println("In CNN solve - number of iterations=$(iter1) err1=$(err1)")
+    return reshape(x1,(n+1)*(m+1),blocks)|>pu
 end
