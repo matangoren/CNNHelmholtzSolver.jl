@@ -1,6 +1,6 @@
 include("test_intro.jl")
 
-# include("../src/solvers/solver_utils.jl")
+include("../src/solvers/solver_utils.jl")
 include("../src/unet/model.jl")
 include("test_utils.jl")
 include("../src/gpu_krylov.jl")
@@ -42,3 +42,5 @@ Ainv = setMediumParameters(Ainv, Helmholtz_param)
 
 rhs = get_rhs(M.n[1], M.n[2], M.h; blocks=16)
 U, Ainv = solveLinearSystem(sparse(ones(size(rhs))), rhs, Ainv)
+heatmap(reshape(real(U[:,:,1,1])|>cpu,n+1,m+1), color=:blues)
+savefig("ej")
