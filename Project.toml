@@ -1,0 +1,4 @@
+name = "CNNHelmholtzSolver"
+uuid = "14f1de96-abf7-4b99-a738-965cb88e7617"
+authors = ["Matan Goren <matantheman@gmail.com>"]
+version = "0.1.0"
