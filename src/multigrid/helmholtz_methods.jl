@@ -20,7 +20,7 @@ function jacobi_helmholtz_method!(n, m, h, x, b, matrix; max_iter=1, w=0.8, use_
     h2 = 1.0 / (h[2]^2)
     for i in 1:max_iter
         residual = b - helmholtz_chain!(x, matrix; h=h)  
-        println("jacobi residual --- $(typeof(residual)) $(residual)")
+        println("jacobi residual --- $(typeof(residual)) $(size(residual))")
     
         d = r_type(2.0 * (h1 + h2)) .- matrix    
         println("jacobi d --- $(typeof(d)) $(size(d))")
