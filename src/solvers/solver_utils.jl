@@ -58,6 +58,13 @@ function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, ome
 
     function SM(r)
         e_vcycle = a_type(zeros(n+1,m+1,1,blocks))
+        println("In SM --- $(n) $(m) $(h)")
+        println("In SM --- $(maximum(kappa))")
+        println("In SM --- $(omega)")
+        println("In SM --- $(v2_iter)")
+        println("In SM --- $(blocks)")
+        println("In SM --- $(typeof(r)) $(size(r))")
+
         e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,blocks), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=blocks)
         return vec(e_vcycle)
     end
