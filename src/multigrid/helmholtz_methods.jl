@@ -12,13 +12,24 @@ end
 function jacobi_helmholtz_method!(n, m, h, x, b, matrix; max_iter=1, w=0.8, use_gmres_alpha=0)
     println("jacobi HERE HERE HERE @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 	println("dir $(@__DIR__)")
+    println("jacobi --- $(n) $(m) $(h)")
+    println("jacobi --- $(typeof(x))")
+    println("jacobi --- $(typeof(b))")
+    println("jacobi --- $(typeof(matrix))")
     h1 = 1.0 / (h[1]^2)
     h2 = 1.0 / (h[2]^2)
     for i in 1:max_iter
-        residual = b - helmholtz_chain!(x, matrix; h=h)       
-        d = r_type(2.0 * (h1 + h2)) .- matrix        
+        residual = b - helmholtz_chain!(x, matrix; h=h)  
+        println("jacobi --- $(typeof(residual))")
+    
+        d = r_type(2.0 * (h1 + h2)) .- matrix    
+        println("jacobi --- $(typeof(d))")
+
         alpha = r_type(w) ./ d
+        println("jacobi --- $(typeof(alpha))")
+
         x += (alpha .* residual)
+        println("jacobi --- $(typeof(x))")
     end
     return x
 end

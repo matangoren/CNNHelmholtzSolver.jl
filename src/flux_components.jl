@@ -55,7 +55,7 @@ function helmholtz_chain!(grid, matrix; h=[0.0225 ; 0.014])
     helmholtz_filter = get_laplacian_filter(h)
     conv = Conv(helmholtz_filter, a_float_type(zeros(1)); pad=0)|>cgpu
     grid = pad_repeat(grid, (1,1,1,1))
-    return a_type(conv(real(grid))+im*conv(imag(grid)) - term)
+    return a_type(conv(real(grid))+im*conv(imag(grid))) - term
 end
 
 function helmholtz_chain_channels!(grid, matrix; h=[0.0225 ; 0.014])
