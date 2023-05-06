@@ -240,7 +240,6 @@ function gpu_flexible_gmres(A::Function,b,restrt; tol,maxIter,M::Function,x,out:
 		# initialization
 		n  = length(b)
 		TYPE = eltype(b)
-		println("TYPE = $(TYPE)")
 		mem = checkMemorySize(mem,n,restrt,TYPE,flexible);
 
 		if norm(b)==0.0
