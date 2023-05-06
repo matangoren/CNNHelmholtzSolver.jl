@@ -5,6 +5,7 @@ using Flux: @functor
 using LaTeXStrings
 using KrylovMethods
 using Distributions: Normal
+using BSON
 using BSON: @load
 using Plots
 using Dates

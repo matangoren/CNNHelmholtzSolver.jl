@@ -74,6 +74,7 @@ function setupSolver!(param::CnnHelmholtzSolver)
     model = model|>cpu
     println("after create")
     # @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model #"../../models/$(test_name).bson" model
+    # model = BSON.load(joinpath(@__DIR__, "../../models/$(model_name)/model.bson"), @__MODULE__)
     BSON.load(joinpath(@__DIR__, "../../models/$(model_name)/model.bson"))[:model]
     @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
     param.model = model|>cgpu
