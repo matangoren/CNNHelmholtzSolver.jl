@@ -1,5 +1,5 @@
 include("../multigrid/helmholtz_methods.jl")
-include("../src/gpu_krylov.jl")
+include("../gpu_krylov.jl")
 
 if use_gpu == true
     fgmres_func = gpu_flexible_gmres

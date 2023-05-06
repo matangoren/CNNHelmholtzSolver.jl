@@ -1,8 +1,8 @@
 export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setupSolver,setMediumParameters,setSolverType
 
-include("./unet/model.jl")
-include("../test/test_utils.jl")
-include("./data.jl")
+include("../unet/model.jl")
+include("../../test/test_utils.jl")
+include("../data.jl")
 include("./solver_utils.jl")
 
 
