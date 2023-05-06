@@ -1,5 +1,5 @@
-smooth_up_filter = (r_type.( reshape((1/4) * [1 2 1;2 4.0 2;1 2 1],3,3,1,1)))|>cgpu
-smooth_down_filter = (r_type.( reshape((1/16) * [1 2 1;2 4 2;1 2 1],3,3,1,1)))|>cgpu
+# smooth_up_filter = (r_type.( reshape((1/4) * [1 2 1;2 4.0 2;1 2 1],3,3,1,1)))|>cgpu
+# smooth_down_filter = (r_type.( reshape((1/16) * [1 2 1;2 4 2;1 2 1],3,3,1,1)))|>cgpu
 # laplacian_filter = r_type.(reshape([0 -1 0;-1 4.0 -1;0 -1 0],3,3,1,1))
 
 
@@ -27,8 +27,8 @@ end
 
 # block_laplacian_filter = block_filter!(3, get_laplacian_filter(h), 2)
 
-up = ConvTranspose(smooth_up_filter, (zeros(r_type,1))|>cgpu, stride=2,pad=1)|>cgpu;
-down = Conv(smooth_down_filter, (zeros(r_type,1))|>cgpu, stride=2,pad=1)|>cgpu;
+# up = ConvTranspose(smooth_up_filter, (zeros(r_type,1))|>cgpu, stride=2,pad=1)|>cgpu;
+# down = Conv(smooth_down_filter, (zeros(r_type,1))|>cgpu, stride=2,pad=1)|>cgpu;
 
 block_up = ConvTranspose(block_filter!(3, smooth_up_filter, 2), true, stride=2,pad=1)
 block_down = Conv(block_filter!(3, smooth_down_filter, 2), true, stride=2,pad=1)

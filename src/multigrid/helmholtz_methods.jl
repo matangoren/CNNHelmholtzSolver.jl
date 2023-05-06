@@ -1,5 +1,9 @@
 include("../flux_components.jl");
 
+smooth_up_filter = (r_type.( reshape((1/4) * [1 2 1;2 4.0 2;1 2 1],3,3,1,1)))|>cgpu
+smooth_down_filter = (r_type.( reshape((1/16) * [1 2 1;2 4 2;1 2 1],3,3,1,1)))|>cgpu
+up = ConvTranspose(smooth_up_filter, (zeros(r_type,1))|>cgpu, stride=2,pad=1)|>cgpu;
+down = Conv(smooth_down_filter, (zeros(r_type,1))|>cgpu, stride=2,pad=1)|>cgpu;
 # Multigrid Helmholtz Shifted Laplacian Methods
 
 function get_helmholtz_matrices!(kappa, omega, gamma; alpha=0.5)
