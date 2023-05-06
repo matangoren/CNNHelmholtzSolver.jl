@@ -73,7 +73,7 @@ function setupSolver!(param::CnnHelmholtzSolver)
     model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
     model = model|>cpu
     println("after create")
-    @load test_name model #"../../models/$(test_name).bson" model
+    @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model #"../../models/$(test_name).bson" model
     @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
     param.model = model|>cgpu
     param.kappa_features = Base.invokelatest(get_kappa_features,param.model, param.n, param.m, param.kappa, param.gamma; arch=arch, indexes=indexes)
