@@ -2,11 +2,8 @@ include("../flux_components.jl");
 
 
 function get_helmholtz_matrices!(kappa, omega, gamma; alpha=0.5)
-    println("NEW NEW NEW - GOREN - get_helmholtz_matrices!")
-	println("dir $(@__DIR__)")
     shifted_laplacian_matrix = kappa .* kappa .* omega .* (omega .- (im .* gamma) .- (im .* omega .* alpha))
     helmholtz_matrix = kappa .* kappa .* omega .* (omega .- (im .* gamma))
-    println("typeof matrices = $(typeof(shifted_laplacian_matrix)) $(typeof(helmholtz_matrix))")
     return shifted_laplacian_matrix, helmholtz_matrix
 end
 
@@ -39,8 +36,6 @@ end
 # end
 
 function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter = 1, v2_iter = 10, use_gmres_alpha = 0, alpha= 0.5, log = 0, level = nothing, blocks=1)
-    println("NEW NEW NEW - GOREN - v_cycle_helmholtz!")
-	println("dir $(@__DIR__)")
     shifted_laplacian_matrix, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(alpha))
     # Relax on Ax = b v1_iter times with initial guess x
     x = jacobi_helmholtz_method!(n, m, h, x, b, shifted_laplacian_matrix; max_iter=v1_iter, use_gmres_alpha=use_gmres_alpha)

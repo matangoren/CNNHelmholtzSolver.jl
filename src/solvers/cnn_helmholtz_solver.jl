@@ -1,7 +1,6 @@
 export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setupSolver,setMediumParameters,setSolverType
 
 include("../unet/model.jl")
-# include("../../test/test_utils.jl")
 include("../data.jl")
 include("./solver_utils.jl")
 
@@ -74,8 +73,6 @@ function setupSolver!(param::CnnHelmholtzSolver)
     model = model|>cpu
     println("after create")
     @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model #"../../models/$(test_name).bson" model
-    # model = BSON.load(joinpath(@__DIR__, "../../models/$(model_name)/model.bson"), @__MODULE__)
-    # BSON.load(joinpath(@__DIR__, "../../models/$(model_name)/model.bson"))[:model]
     @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
     param.model = model|>cgpu
     param.kappa_features = Base.invokelatest(get_kappa_features,param.model, param.n, param.m, param.kappa, param.gamma; arch=arch, indexes=indexes)
@@ -87,25 +84,14 @@ end
 function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::HelmholtzParam)    
     param.n, param.m = Helmholtz_param.Mesh.n
     param.h = (Helmholtz_param.Mesh.h)|>cgpu
-    # param.gamma = a_float_type(reshape(Helmholtz_param.gamma,param.n+1,param.m+1))
+    param.gamma = a_float_type(reshape(Helmholtz_param.gamma,param.n+1,param.m+1))
     
-    # slowness = r_type.(reshape(sqrt.(Helmholtz_param.m),param.n+1,param.m+1)) # slowness (m from FWI is slowness squared)
-    # c = r_type(maximum(slowness))
-    # omega_exact = r_type((0.1*2*pi) / (c*maximum(param.h)))
-    
-    # param.omega = omega_exact * c
-    # param.kappa = a_float_type(slowness .* (Helmholtz_param.omega/(omega_exact*c))) # normalized slowness * w_fwi/w_exact
-    kappa_i, c = get2DSlownessLinearModel(param.n,param.m;normalized=false)
-    c = maximum(kappa_i)
-
+    slowness = r_type.(reshape(sqrt.(Helmholtz_param.m),param.n+1,param.m+1)) # slowness (m from FWI is slowness squared)
+    c = r_type(maximum(slowness))
     omega_exact = r_type((0.1*2*pi) / (c*maximum(param.h)))
-    omega_fwi = Helmholtz_param.omega
-
-
-    param.kappa = (kappa_i .* (omega_fwi/(omega_exact*c)))|>cgpu
+    
     param.omega = omega_exact * c
-    attenuation = r_type(0.01*4*pi);
-    param.gamma = (getABL([param.n+1,param.m+1],true,ones(Int64,2)*20,Float64(param.omega)) .+ attenuation)|>cgpu
+    param.kappa = a_float_type(slowness .* (Helmholtz_param.omega/(omega_exact*c))) # normalized slowness * w_fwi/w_exact
     heatmap(param.kappa|>cpu, color=:blues)
     savefig("m_from_fwi")
     heatmap(param.gamma|>cpu, color=:blues)
@@ -134,7 +120,6 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
     if param.model == []
         param = setupSolver!(param)
     end
-    println("In solveLinearSystem - NEW!!!!!!!!!!!")
     return Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, B|>cgpu, param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"]), param
 end
 
