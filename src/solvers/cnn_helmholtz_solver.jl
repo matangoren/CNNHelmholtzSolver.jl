@@ -96,13 +96,7 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
     savefig("m_from_fwi")
     heatmap(param.gamma|>cpu, color=:blues)
     savefig("gamma_from_fwi")
-    println("In set --- $(model_name)")
-    println("In set --- $(param.n),$(param.m)")
-    println("In set --- $(Helmholtz_param.Mesh.h)")
-    println("In set --- $(param.h)")
-    println("In set --- $(c)")
-    println("In set --- $(param.omega)")
-    println("In set --- $(omega_fwi)")
+    
     if param.model == []
         param = setupSolver!(param)
     end
