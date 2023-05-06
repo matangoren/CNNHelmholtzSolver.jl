@@ -8,9 +8,6 @@ function get_helmholtz_matrices!(kappa, omega, gamma; alpha=0.5)
 end
 
 function jacobi_helmholtz_method!(n, m, h, x, b, matrix; max_iter=1, w=0.8, use_gmres_alpha=0)
-    println("NEW NEW NEW - GOREN - jacobi_helmholtz_method!")
-    println("jacobi HERE HERE HERE @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-	println("dir $(@__DIR__)")
     h1 = 1.0 / (h[1]^2)
     h2 = 1.0 / (h[2]^2)
     for i in 1:max_iter
