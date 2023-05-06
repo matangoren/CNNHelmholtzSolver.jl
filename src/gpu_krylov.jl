@@ -9,9 +9,9 @@ end
 
 function getFGMRESmem(n::Int,flexible::Bool,T::Type,k::Int,nrhs::Int=1)
 	if flexible
-		return FGMRESmem(zeros(T,n,k*nrhs),zeros(T,n,k*nrhs))|>cgpu;
+		return FGMRESmem(zeros(T,n,k*nrhs)|>cgpu,zeros(T,n,k*nrhs)|>cgpu)|>cgpu;
 	else
-		return FGMRESmem(zeros(T,n,k*nrhs),zeros(T,0))|>cgpu;
+		return FGMRESmem(zeros(T,n,k*nrhs)|>cgpu,zeros(T,0)|>cgpu)|>cgpu;
 	end
 end
 
