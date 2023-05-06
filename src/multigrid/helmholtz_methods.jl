@@ -1,4 +1,4 @@
-# include("../flux_components.jl");
+include("../flux_components.jl");
 
 
 function get_helmholtz_matrices!(kappa, omega, gamma; alpha=0.5)
