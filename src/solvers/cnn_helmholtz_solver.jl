@@ -6,6 +6,11 @@ else
     fgmres_func = KrylovMethods.fgmres
 end
 
+include("./unet/model.jl")
+include("../test/test_utils.jl")
+include("./data.jl")
+include("./solver_utils.jl")
+
 
 function get_solver_type(solver_name)
     if solver_name == "JU"

@@ -3,6 +3,7 @@ include("../flux_components.jl");
 # Multigrid Helmholtz Shifted Laplacian Methods
 
 function get_helmholtz_matrices!(kappa, omega, gamma; alpha=0.5)
+    println("NEW NEW NEW - GOREN - get_helmholtz_matrices!")
     shifted_laplacian_matrix = kappa .* kappa .* omega .* (omega .- (im .* gamma) .- (im .* omega .* alpha))
     helmholtz_matrix = kappa .* kappa .* omega .* (omega .- (im .* gamma))
     println("typeof matrices = $(typeof(shifted_laplacian_matrix)) $(typeof(helmholtz_matrix))")
@@ -10,6 +11,7 @@ function get_helmholtz_matrices!(kappa, omega, gamma; alpha=0.5)
 end
 
 function jacobi_helmholtz_method!(n, m, h, x, b, matrix; max_iter=1, w=0.8, use_gmres_alpha=0)
+    println("NEW NEW NEW - GOREN - jacobi_helmholtz_method!")
     println("jacobi HERE HERE HERE @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 	println("dir $(@__DIR__)")
     h1 = 1.0 / (h[1]^2)
@@ -37,7 +39,7 @@ function jacobi_helmholtz_method_channels!(n, m, h, x, b, matrix, matrixch; max_
 end
 
 function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter = 1, v2_iter = 10, use_gmres_alpha = 0, alpha= 0.5, log = 0, level = nothing, blocks=1)
-
+    println("NEW NEW NEW - GOREN - v_cycle_helmholtz!")
     shifted_laplacian_matrix, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(alpha))
     # Relax on Ax = b v1_iter times with initial guess x
     x = jacobi_helmholtz_method!(n, m, h, x, b, shifted_laplacian_matrix; max_iter=v1_iter, use_gmres_alpha=use_gmres_alpha)

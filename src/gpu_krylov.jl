@@ -236,6 +236,7 @@ end #fgmres
 
 
 function gpu_flexible_gmres(A::Function,b,restrt; tol,maxIter,M::Function,x,out::Int=0,storeInterm::Bool=false,flexible::Bool=false,mem::FGMRESmem =  getEmptyFGMRESmem())
+    	println("NEW NEW NEW - GOREN - gpu_flexible_gmres")
 		println("HERE HERE HERE @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 		println("dir $(@__DIR__)")
 		t0 = t1 = now()
