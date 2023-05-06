@@ -51,6 +51,8 @@ function helmholtz_chain!(grid::a_type, matrix::a_type; h=[0.0225 ; 0.014])
     # return y
 
     # mirror-padding
+    println("NEW NEW NEW - GOREN - helmholtz_chain!")
+	println("dir $(@__DIR__)")
     term = matrix .* (grid)
     helmholtz_filter = get_laplacian_filter(h)
     conv = Conv(helmholtz_filter, (zeros(r_type,1))|>cgpu; pad=0)|>cgpu

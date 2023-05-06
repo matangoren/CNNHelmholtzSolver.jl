@@ -4,6 +4,7 @@ include("../flux_components.jl");
 
 function get_helmholtz_matrices!(kappa, omega, gamma; alpha=0.5)
     println("NEW NEW NEW - GOREN - get_helmholtz_matrices!")
+	println("dir $(@__DIR__)")
     shifted_laplacian_matrix = kappa .* kappa .* omega .* (omega .- (im .* gamma) .- (im .* omega .* alpha))
     helmholtz_matrix = kappa .* kappa .* omega .* (omega .- (im .* gamma))
     println("typeof matrices = $(typeof(shifted_laplacian_matrix)) $(typeof(helmholtz_matrix))")
