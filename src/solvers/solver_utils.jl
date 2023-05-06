@@ -1,6 +1,13 @@
 include("../multigrid/helmholtz_methods.jl")
 include("../src/gpu_krylov.jl")
 
+if use_gpu == true
+    fgmres_func = gpu_flexible_gmres
+else
+    fgmres_func = KrylovMethods.fgmres
+end
+
+
 function get_kappa_features(model, n, m, kappa, gamma; arch=2, indexes=3)
     kappa_features = NaN
     if arch != 0

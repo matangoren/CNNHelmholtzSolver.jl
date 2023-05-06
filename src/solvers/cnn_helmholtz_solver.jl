@@ -1,11 +1,5 @@
 export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setupSolver,setMediumParameters,setSolverType
 
-if use_gpu == true
-    fgmres_func = gpu_flexible_gmres
-else
-    fgmres_func = KrylovMethods.fgmres
-end
-
 include("./unet/model.jl")
 include("../test/test_utils.jl")
 include("./data.jl")
