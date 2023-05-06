@@ -1,7 +1,7 @@
 export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setupSolver,setMediumParameters,setSolverType
 
 include("../unet/model.jl")
-include("../../test/test_utils.jl")
+# include("../../test/test_utils.jl")
 include("../data.jl")
 include("./solver_utils.jl")
 
@@ -69,7 +69,13 @@ function setupSolver!(param::CnnHelmholtzSolver)
     σ = elu #@eval $(Symbol(DICT["sigma"]))
     arch = DICT["arch"]
 
-    param.model = load_model!(joinpath(@__DIR__, "../../models/$(model_name)/model.bson"), e_vcycle_input, kappa_input, gamma_input; kernel=kernel, model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
+    # param.model = load_model!(joinpath(@__DIR__, "../../models/$(model_name)/model.bson"), e_vcycle_input, kappa_input, gamma_input; kernel=kernel, model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
+    model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
+    model = model|>cpu
+    println("after create")
+    @load test_name model #"../../models/$(test_name).bson" model
+    @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
+    param.model = model|>cgpu
     param.kappa_features = Base.invokelatest(get_kappa_features,param.model, param.n, param.m, param.kappa, param.gamma; arch=arch, indexes=indexes)
     param.model_parameters = DICT
     
