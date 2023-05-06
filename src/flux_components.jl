@@ -30,8 +30,8 @@ end
 # up = ConvTranspose(smooth_up_filter, (zeros(r_type,1))|>cgpu, stride=2,pad=1)|>cgpu;
 # down = Conv(smooth_down_filter, (zeros(r_type,1))|>cgpu, stride=2,pad=1)|>cgpu;
 
-block_up = ConvTranspose(block_filter!(3, smooth_up_filter, 2), true, stride=2,pad=1)
-block_down = Conv(block_filter!(3, smooth_down_filter, 2), true, stride=2,pad=1)
+# block_up = ConvTranspose(block_filter!(3, smooth_up_filter, 2), true, stride=2,pad=1)
+# block_down = Conv(block_filter!(3, smooth_down_filter, 2), true, stride=2,pad=1)
 
 # i_conv = Conv(block_filter!(1, reshape([1.0],1,1,1,1), 2),true,pad=1)|> pu
 
