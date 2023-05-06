@@ -53,7 +53,7 @@ function loss_bce(x, y)
 end
 
 function complex_grid_to_channels!(grid; blocks=1)
-    grid_channels = a_float_type(zeros(size(grid,1), size(grid,2), 2, blocks))
+    grid_channels = zeros(r_type,size(grid,1), size(grid,2), 2, blocks)|>cgpu
     grid_channels[:, :, 1, :] = real(grid)
     grid_channels[:, :, 2, :] = imag(grid)
     return grid_channels

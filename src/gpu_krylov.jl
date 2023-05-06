@@ -9,9 +9,9 @@ end
 
 function getFGMRESmem(n::Int,flexible::Bool,T::Type,k::Int,nrhs::Int=1)
 	if flexible
-		return FGMRESmem(a_type(zeros(T,n,k*nrhs)),a_type(zeros(T,n,k*nrhs)));
+		return FGMRESmem(zeros(T,n,k*nrhs),zeros(T,n,k*nrhs))|>cgpu;
 	else
-		return FGMRESmem(a_type(zeros(T,n,k*nrhs)),a_type(zeros(T,0)));
+		return FGMRESmem(zeros(T,n,k*nrhs),zeros(T,0))|>cgpu;
 	end
 end
 
@@ -242,6 +242,7 @@ function gpu_flexible_gmres(A::Function,b,restrt; tol,maxIter,M::Function,x,out:
 		# initialization
 		n  = length(b)
 		TYPE = eltype(b)
+		println("TYPE = $(TYPE)")
 		mem = checkMemorySize(mem,n,restrt,TYPE,flexible);
 
 		if norm(b)==0.0
@@ -249,17 +250,17 @@ function gpu_flexible_gmres(A::Function,b,restrt; tol,maxIter,M::Function,x,out:
 		end
 
 		if Base.isempty(x)
-			x = a_type(zeros(eltype(b),n))
-			r = a_type(copy(b));
+			x = zeros(eltype(b),n)|>gpu
+			r = copy(b)|>gpu;
 		elseif norm(x) < eps(real(TYPE))
-			r = a_type(copy(b));
+			r = copy(b)|>gpu;
 		else
-			r = a_type(copy(b));
+			r = copy(b)|>gpu;
 			r= r .- A(x)
 		end
 
 		if storeInterm
-			X = a_type(zeros(eltype(b),n,maxIter));	# allocate space for intermediates
+			X = zeros(eltype(b),n,maxIter)|>gpu;	# allocate space for intermediates
 		end
 
 		betta = r_type(norm(r));
@@ -276,9 +277,9 @@ function gpu_flexible_gmres(A::Function,b,restrt; tol,maxIter,M::Function,x,out:
 		restrt = min(restrt,n-1)
 		Z = mem.Z;
 		V = mem.V;
-		H = a_type(zeros(TYPE,restrt+1,restrt));
-		xi = a_type(zeros(TYPE,restrt+1));
-		t = a_type(zeros(TYPE,restrt));
+		H = zeros(TYPE,restrt+1,restrt)|>gpu;
+		xi = zeros(TYPE,restrt+1)|>gpu;
+		t = zeros(TYPE,restrt)|>gpu;
 
 		resvec = zeros(restrt*maxIter)
 		times = zeros(restrt*maxIter)
@@ -289,7 +290,7 @@ function gpu_flexible_gmres(A::Function,b,restrt; tol,maxIter,M::Function,x,out:
 		flag = -1
 
 		counter = 0
-		w = a_type(zeros(TYPE,n));
+		w = zeros(TYPE,n)|>gpu;
 		iter = 0
 		while iter < maxIter
 			iter+=1;
@@ -382,7 +383,7 @@ function gpu_flexible_gmres(A::Function,b,restrt; tol,maxIter,M::Function,x,out:
 				break
 			end
 			if iter < maxIter
-				r = a_type(copy(b));
+				r = copy(b)|>gpu;
 				r.-=A(x);
 				betta = norm(r)
 			end

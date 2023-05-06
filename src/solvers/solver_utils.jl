@@ -21,8 +21,8 @@ function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, ome
     function M_Unet(r)
         r = reshape(r, n+1, m+1, 1, blocks)
         rj = reshape(r, n+1, m+1, 1, blocks)
-        e = a_type(zeros(n+1, m+1, 1, blocks))
-        ej = a_type(zeros(n+1, m+1, 1, blocks))
+        e = zeros(c_type, n+1, m+1, 1, blocks)|>cgpu
+        ej = zeros(c_type, n+1, m+1, 1, blocks)|>cgpu
 
         if solver_type["before_jacobi"] == true
             ej = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
@@ -57,7 +57,7 @@ function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, ome
     end
 
     function SM(r)
-        e_vcycle = a_type(zeros(n+1,m+1,1,blocks))
+        e_vcycle = zeros(c_type,n+1,m+1,1,blocks)|>cgpu
         println("In SM --- $(n) $(m) $(h)")
         println("In SM --- $(maximum(kappa))")
         println("In SM --- $(omega)")
@@ -69,7 +69,7 @@ function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, ome
         return vec(e_vcycle)
     end
 
-    x_init = a_type(zeros((n+1)*(m+1),blocks))
+    x_init = zeros(c_type,(n+1)*(m+1),blocks)|>cgpu
     ##### just for run-time compilation #####
     # @info "$(Dates.format(now(), "HH:MM:SS")) - before warm-up" 
     # x3,flag3,err3,iter3,resvec3 = fgmres_func(A, vec(r_vcycle), 3, tol=1e-5, maxIter=1,

@@ -2,34 +2,23 @@ include("../flux_components.jl");
 
 # Multigrid Helmholtz Shifted Laplacian Methods
 
-function get_helmholtz_matrices!(kappa, omega, gamma; alpha=0.5)
+function get_helmholtz_matrices!(kappa::a_type, omega, gamma::a_type; alpha=0.5)
     shifted_laplacian_matrix = kappa .* kappa .* omega .* (omega .- (im .* gamma) .- (im .* omega .* alpha))
     helmholtz_matrix = kappa .* kappa .* omega .* (omega .- (im .* gamma))
-
-    return a_type(shifted_laplacian_matrix), a_type(helmholtz_matrix)
+    println("typeof matrices = $(typeof(shifted_laplacian_matrix)) $(typeof(helmholtz_matrix))")
+    return shifted_laplacian_matrix, helmholtz_matrix
 end
 
 function jacobi_helmholtz_method!(n, m, h, x, b, matrix; max_iter=1, w=0.8, use_gmres_alpha=0)
     println("jacobi HERE HERE HERE @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 	println("dir $(@__DIR__)")
-    println("jacobi --- $(n) $(m) $(h)")
-    println("jacobi x --- $(typeof(x)) $(size(x))")
-    println("jacobi b --- $(typeof(b)) $(size(b))")
-    println("jacobi matrix --- $(typeof(matrix)) $(size(matrix))")
     h1 = 1.0 / (h[1]^2)
     h2 = 1.0 / (h[2]^2)
     for i in 1:max_iter
         residual = b - helmholtz_chain!(x, matrix; h=h)  
-        println("jacobi residual --- $(typeof(residual)) $(size(residual))")
-    
         d = r_type(2.0 * (h1 + h2)) .- matrix    
-        println("jacobi d --- $(typeof(d)) $(size(d))")
-
         alpha = r_type(w) ./ d
-        println("jacobi alpha --- $(typeof(alpha)) $(size(alpha))")
-        println("jacobi alpha.*residual --- $(typeof(alpha .* residual)) $(size(alpha .* residual))")
         x += (alpha .* residual)
-        # println("jacobi --- $(typeof(x))")
     end
     return x
 end
@@ -68,7 +57,7 @@ function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter =
         # Recursive operation of the method on the coarse grid
         n_coarse = size(residual_coarse,1)-1
         m_coarse = size(residual_coarse,2)-1
-        x_coarse = a_type(zeros(n_coarse+1, m_coarse+1,1,blocks))
+        x_coarse = (zeros(c_type,n_coarse+1, m_coarse+1,1,blocks))|>cgpu
         for i = 1:u
             x_coarse, helmholtz_matrix_coarse = v_cycle_helmholtz!(n_coarse, m_coarse, h.*2, x_coarse, residual_coarse, kappa_coarse, omega, gamma_coarse; use_gmres_alpha = use_gmres_alpha,
                                                                     u=u, v1_iter=v1_iter, v2_iter=v2_iter, log=log, level = (level == nothing ? nothing : (level-1)), blocks=blocks)

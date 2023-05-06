@@ -72,14 +72,14 @@ function setupSolver!(param::CnnHelmholtzSolver)
 
     param.model = load_model!(joinpath(@__DIR__, "../../models/$(model_name)/model.bson"), e_vcycle_input, kappa_input, gamma_input; kernel=kernel, model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
     param.kappa_features = Base.invokelatest(get_kappa_features,param.model, param.n, param.m, param.kappa, param.gamma; arch=arch, indexes=indexes)
-     param.model_parameters = DICT
+    param.model_parameters = DICT
     
     return param
 end
 
 function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::HelmholtzParam)    
     param.n, param.m = Helmholtz_param.Mesh.n
-    param.h = Helmholtz_param.Mesh.h|>cgpu
+    param.h = (Helmholtz_param.Mesh.h)|>cgpu
     # param.gamma = a_float_type(reshape(Helmholtz_param.gamma,param.n+1,param.m+1))
     
     # slowness = r_type.(reshape(sqrt.(Helmholtz_param.m),param.n+1,param.m+1)) # slowness (m from FWI is slowness squared)
@@ -95,11 +95,10 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
     omega_fwi = Helmholtz_param.omega
 
 
-    param.kappa = a_float_type(kappa_i .* (omega_fwi/(omega_exact*c)))
+    param.kappa = (kappa_i .* (omega_fwi/(omega_exact*c)))|>cgpu
     param.omega = omega_exact * c
-    param.gamma = a_float_type(getABL([param.n+1,param.m+1],true,ones(Int64,2)*20,Float64(param.omega)))
     attenuation = r_type(0.01*4*pi);
-    param.gamma .+= attenuation
+    param.gamma = (getABL([param.n+1,param.m+1],true,ones(Int64,2)*20,Float64(param.omega)) .+ attenuation)|>cgpu
     heatmap(param.kappa|>cpu, color=:blues)
     savefig("m_from_fwi")
     heatmap(param.gamma|>cpu, color=:blues)
@@ -129,7 +128,7 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
         param = setupSolver!(param)
     end
     println("In solveLinearSystem - NEW!!!!!!!!!!!")
-    return Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, a_type(B), param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"]), param
+    return Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, B|>cgpu, param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"]), param
 end
 
 
