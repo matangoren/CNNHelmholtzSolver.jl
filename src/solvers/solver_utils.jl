@@ -87,6 +87,7 @@ function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, ome
                                                     M=SM, x=vec(x_init), out=-1,flexible=true)
     println("In CNN solve - number of iterations=$(iter3) err1=$(err3)")
 
+    # add tol as parameter
     x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=1e-5, maxIter=max_iter,
                                                             M=M_Unet, x=vec(x3), out=1,flexible=true)
     

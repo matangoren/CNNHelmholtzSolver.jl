@@ -37,12 +37,9 @@ M = getRegularMesh(domain,[n;m])
 M.h = h
 Ainv = getCnnHelmholtzSolver("VU")
 	
-Helmholtz_param = HelmholtzParam(M,ones(5,5),ones(5,5),3.9*2*pi,true,true)
+# Helmholtz_param = HelmholtzParam(M,ones(5,5),ones(5,5),3.9*2*pi,true,true)
 Ainv = setMediumParameters(Ainv, Helmholtz_param)
 
 println("check Jacobi")
-rhs = get_rhs(M.n[1], M.n[2], M.h; blocks=16)
+rhs = get_rhs(M.n[1], M.n[2], M.h; blocks=8)
 U, Ainv = solveLinearSystem(sparse(ones(size(rhs))), rhs, Ainv)
-U = reshape(U, n+1,m+1,1,8);
-heatmap(reshape(real(U[:,:,1,1])|>cpu,n+1,m+1), color=:blues)
-savefig("ej")

@@ -4,7 +4,6 @@ include("../unet/model.jl")
 include("../data.jl")
 include("./solver_utils.jl")
 
-
 function get_solver_type(solver_name)
     if solver_name == "JU"
         return Dict("before_jacobi"=>true, "unet"=>true, "after_jacobi"=>true, "after_vcycle"=>false)
@@ -50,6 +49,7 @@ function getCnnHelmholtzSolver(solver_type::Dict; n=128, m=128,h=[], kappa=[], o
 end
 
 # need only B - the rhs of the linear equation. The rest of the computations is done by the cnn model.
+import jInv.LinearSolvers.solveLinearSystem;
 function solveLinearSystem(A,B,param::CnnHelmholtzSolver,doTranspose::Int=0)
     return solveLinearSystem!(A,B,[],param,doTranspose)
 end
@@ -109,6 +109,7 @@ function setSolverType(solver_name::String, param::CnnHelmholtzSolver)
     return param
 end
 
+import jInv.LinearSolvers.solveLinearSystem!;
 function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doTranspose=0)
     println("in solveLinearSystem")
     if param.model == []
@@ -117,12 +118,13 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
     return Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, B|>cgpu, param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"]), param
 end
 
-
+import jInv.LinearSolvers.clear!;
 function clear!(param::CnnHelmholtzSolver)
     param.model = []
     param.model_parameters = Dict()
 end
 
+import jInv.LinearSolvers.copySolver;
 function copySolver(param::CnnHelmholtzSolver)
     return getCnnHelmholtzSolver(param.solver_type)
 end
