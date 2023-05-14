@@ -32,7 +32,7 @@ end
 #     return x
 # end
 
-function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter = 1, v2_iter = 10, use_gmres_alpha = 0, alpha= 0.5, log = 0, level = nothing, blocks=1)
+function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter = 1, v2_iter = 10, use_gmres_alpha = 0, alpha= 0.5, log = 0, level = nothing, blocks=1, tol=1e-4)
     shifted_laplacian_matrix, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(alpha))
     # Relax on Ax = b v1_iter times with initial guess x
     x = jacobi_helmholtz_method!(n, m, h, x, b, shifted_laplacian_matrix; max_iter=v1_iter, use_gmres_alpha=use_gmres_alpha)
@@ -71,7 +71,7 @@ function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter =
         # Coarsest grid
         A_Coarsest(v::a_type) =  vec(helmholtz_chain!(reshape(v,n+1,m+1,1,blocks), shifted_laplacian_matrix; h=h))
         M_Coarsest(v::a_type) = vec(jacobi_helmholtz_method!(n, m, h, x, reshape(v,n+1,m+1,1,blocks), shifted_laplacian_matrix; max_iter=1, use_gmres_alpha=use_gmres_alpha))
-        x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=1e-15, maxIter=1,
+        x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=tol, maxIter=1,
                                                     M=M_Coarsest, x=vec(x), out=-1, flexible=true)
         x = reshape(x,n+1,m+1,1,blocks)
     end

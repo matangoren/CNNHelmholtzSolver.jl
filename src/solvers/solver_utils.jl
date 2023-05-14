@@ -20,7 +20,7 @@ function get_kappa_features(model, n, m, kappa, gamma; arch=2, indexes=3)
     return kappa_features
 end
 
-function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, omega, gamma, restrt, max_iter; v2_iter=10, level=3, axb=false, arch=2)
+function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, omega, gamma, restrt, max_iter; v2_iter=10, level=3, axb=false, arch=2, solver_tol=1e-8, relaxation_tol=1e-4)
 
     _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
     blocks = size(r_vcycle,2)
@@ -68,7 +68,7 @@ function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, ome
 
     function SM(r)
         e_vcycle = zeros(c_type,n+1,m+1,1,blocks)|>cgpu
-        e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,blocks), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=blocks)
+        e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,blocks), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=blocks, tol=relaxation_tol)
         return vec(e_vcycle)
     end
 
@@ -83,12 +83,12 @@ function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, ome
     #########################################
     
     println("before gmres $(typeof(r_vcycle)) $(norm(r_vcycle)) $(norm(x_init))")
-    x3,flag3,err3,iter3,resvec3 =@time fgmres_func(A, vec(r_vcycle), 3, tol=1e-15, maxIter=1,
+    x3,flag3,err3,iter3,resvec3 =@time fgmres_func(A, vec(r_vcycle), 3, tol=solver_tol, maxIter=1,
                                                     M=SM, x=vec(x_init), out=-1,flexible=true)
     println("In CNN solve - number of iterations=$(iter3) err1=$(err3)")
 
     # add tol as parameter
-    x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=1e-5, maxIter=max_iter,
+    x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=solver_tol, maxIter=max_iter,
                                                             M=M_Unet, x=vec(x3), out=1,flexible=true)
     
     println("In CNN solve - number of iterations=$(iter1) err1=$(err1)")

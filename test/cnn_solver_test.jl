@@ -8,7 +8,6 @@ include("../src/data.jl")
 
 include("../src/solvers/solver_utils.jl")
 include("../src/solvers/cnn_helmholtz_solver.jl")
-# using jInv.Mesh
 
 
 function get_rhs(n, m, h; blocks=2)
@@ -48,12 +47,11 @@ medium = kappa_i.^2
 c = maximum(kappa_i)
 
 omega_exact = r_type((0.1*2*pi) / (c*maximum(h)))
-f_exact = (omega_exact/2pi)
 f_fwi = 3.9
 omega_fwi = r_type(2*pi*f_fwi)
 
 println("c=$(c) - h=$(h)")
-println("omega_exact = $(omega_exact) f_exact = $(f_exact)")
+println("omega_exact = $(omega_exact) f_exact = $(omega_exact/2pi)")
 println("omega = $(omega_fwi) f_fwi = $(f_fwi)")
 
 
@@ -67,7 +65,7 @@ attenuation = r_type(0.01*4*pi);
 gamma .+= attenuation
 
 # generating rhs
-rhs = get_rhs(n,m,h; blocks=16)
+rhs = get_rhs(n,m,h; blocks=8)
 println("size of rhs $(size(rhs))")
 
 
@@ -85,46 +83,3 @@ solver = setMediumParameters(solver, Helmholtz_param)
 println("VU")
 result_3_9, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver)|>cpu
 plot_results("test_16_cnn_solver_point_source_result_JU", result_3_9, n ,m)
-
-# println("VU")
-# solver = setSolverType("VU", solver)
-# result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver)
-# plot_results("test_16_cnn_solver_point_source_result_VU", result, n ,m)
-
-# println("V")
-# solver = setSolverType("V", solver)
-# result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver)
-# plot_results("test_16_cnn_solver_point_source_result_V", result, n ,m)
-
-
-# f_fwi = 0.5
-# omega_fwi = r_type(2*pi*f_fwi)
-
-# println("c=$(c) - h=$(h)")
-# println("omega_exact = $(omega_exact) f_exact = $(f_exact)")
-# println("omega = $(omega_fwi) f_fwi = $(f_fwi)")
-
-
-# kappa = kappa_i .* (omega_fwi/(omega_exact*c))
-# omega = omega_exact * c
-
-# ABLpad = 20
-# ABLamp = omega # omega_exact
-# gamma = r_type.(getABL([n+1,m+1],true,ones(Int64,2)*ABLpad,ABLamp))|>cpu
-# attenuation = r_type(0.01*4*pi);
-# gamma .+= attenuation
-
-
-# M = getRegularMesh(domain,[n;m])
-# M.h = h
-# useSommerfeldBC = true
-# Helmholtz_param = HelmholtzParam(M,gamma,medium,omega_fwi,true,useSommerfeldBC)
-
-
-# solver = getCnnHelmholtzSolver("V")
-# solver = setMediumParameters(solver, Helmholtz_param)
-
-
-# println("V")
-# result_3_2_v, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver)
-# plot_results("test_16_cnn_solver_point_source_result_V_0_5", result_3_2_v, n ,m)

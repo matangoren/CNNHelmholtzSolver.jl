@@ -38,14 +38,16 @@ mutable struct CnnHelmholtzSolver<: AbstractSolver
     tuning_size
     tuning_iterations
     doClear
+    solver_tol
+    relaxation_tol
 end
 
-function getCnnHelmholtzSolver(solver_name; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100)
-    return CnnHelmholtzSolver(get_solver_type(solver_name), n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0)
+function getCnnHelmholtzSolver(solver_name; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100, solver_tol=1e-8, relaxation_tol=1e-4)
+    return CnnHelmholtzSolver(get_solver_type(solver_name), n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol)
 end
 
-function getCnnHelmholtzSolver(solver_type::Dict; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100)
-    return CnnHelmholtzSolver(solver_type, n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0)
+function getCnnHelmholtzSolver(solver_type::Dict; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100, solver_tol=1e-8, relaxation_tol=1e-4)
+    return CnnHelmholtzSolver(solver_type, n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol)
 end
 
 # need only B - the rhs of the linear equation. The rest of the computations is done by the cnn model.
@@ -92,10 +94,10 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
     
     param.omega = omega_exact * c
     param.kappa = a_float_type(slowness .* (Helmholtz_param.omega/(omega_exact*c))) # normalized slowness * w_fwi/w_exact
-    heatmap(param.kappa|>cpu, color=:blues)
-    savefig("m_from_fwi")
-    heatmap(param.gamma|>cpu, color=:blues)
-    savefig("gamma_from_fwi")
+    # heatmap(param.kappa|>cpu, color=:blues)
+    # savefig("m_from_fwi")
+    # heatmap(param.gamma|>cpu, color=:blues)
+    # savefig("gamma_from_fwi")
     
     if param.model == []
         param = setupSolver!(param)
@@ -115,7 +117,7 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
     if param.model == []
         param = setupSolver!(param)
     end
-    return Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, B|>cgpu, param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"]), param
+    return Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, B|>cgpu, param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"], solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol), param
 end
 
 import jInv.LinearSolvers.clear!;
