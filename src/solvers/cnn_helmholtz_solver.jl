@@ -2,7 +2,7 @@ export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,set
 
 include("../unet/model.jl")
 include("../data.jl")
-include("./solver_utils.jl")
+include("solver_utils.jl")
 
 function get_solver_type(solver_name)
     if solver_name == "JU"
