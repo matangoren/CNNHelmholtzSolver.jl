@@ -13,8 +13,7 @@ using CSV, DataFrames
 using Random
 using MAT
 using SparseArrays
-# using jInv.LinearSolvers
-import jInv.LinearSolvers
+using jInv.LinearSolvers
 using Helmholtz
 using jInv.Mesh
 
