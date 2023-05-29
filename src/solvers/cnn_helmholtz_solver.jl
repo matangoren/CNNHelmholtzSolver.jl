@@ -117,7 +117,21 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
     if param.model == []
         param = setupSolver!(param)
     end
-    return Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, B|>cgpu, param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"], solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol), param
+
+    if doTranspose == 1
+        # negate the imaginary part of B (rhs)
+        print("GG")
+        B = real(B) - im*imag(B)
+    end
+
+    res = Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, B|>cgpu, param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"], solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol)
+    
+    if doTranspose == 1
+        # negate the imaginary part of res
+        print("GG")
+        res = real(res) - im*imag(res)
+    end
+    return res, param
 end
 
 # import jInv.LinearSolvers.clear!;

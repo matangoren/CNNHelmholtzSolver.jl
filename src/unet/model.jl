@@ -105,63 +105,63 @@ end
 
 # FFKappa + FFSDNUnet: an encoder that prepares hierarchical input
 
-struct FFKappa
-    conv_down_blocks
-    conv_blocks
-    up_blocks
-end
+# struct FFKappa
+#     conv_down_blocks
+#     conv_blocks
+#     up_blocks
+# end
   
-@functor FFKappa
+# @functor FFKappa
 
-function FFKappa(channels::Int = 2, labels::Int = channels; kernel = (3, 3), σ=elu, resnet_type=SResidualBlock)
-    conv_down_blocks = Chain(ConvDown(channels,16;σ=σ),
-            ConvDown(16,32;σ=σ),
-            ConvDown(32,64;σ=σ),
-            ConvDown(64,128;σ=σ))|> cgpu
+# function FFKappa(channels::Int = 2, labels::Int = channels; kernel = (3, 3), σ=elu, resnet_type=SResidualBlock)
+#     conv_down_blocks = Chain(ConvDown(channels,16;σ=σ),
+#             ConvDown(16,32;σ=σ),
+#             ConvDown(32,64;σ=σ),
+#             ConvDown(64,128;σ=σ))|> cgpu
 
-    conv_blocks = Chain(resnet_type(16,16; kernel = kernel, σ=σ),
-        resnet_type(32,32; kernel = kernel, σ=σ),
-        resnet_type(64,64; kernel = kernel, σ=σ),
-        resnet_type(128,128; kernel = kernel, σ=σ),
-        resnet_type(128,128; kernel = kernel, σ=σ),
-        resnet_type(128,128; kernel = kernel, σ=σ),
-        resnet_type(128,128; kernel = kernel, σ=σ))|> cgpu
+#     conv_blocks = Chain(resnet_type(16,16; kernel = kernel, σ=σ),
+#         resnet_type(32,32; kernel = kernel, σ=σ),
+#         resnet_type(64,64; kernel = kernel, σ=σ),
+#         resnet_type(128,128; kernel = kernel, σ=σ),
+#         resnet_type(128,128; kernel = kernel, σ=σ),
+#         resnet_type(128,128; kernel = kernel, σ=σ),
+#         resnet_type(128,128; kernel = kernel, σ=σ))|> cgpu
 
-    up_blocks = Chain(UNetUpBlock(128, 64; σ=σ),
-                        UNetUpBlock(128, 32; σ=σ),
-                        UNetUpBlock(64, 16; σ=σ),
-                        Chain(x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
-                                Conv((3, 3), pad = 1, 32=>16;init=_random_normal)),
-                        ConvUp(16, labels; σ=σ))|> cgpu
-    FFKappa(conv_down_blocks, conv_blocks, up_blocks)
-end
+#     up_blocks = Chain(UNetUpBlock(128, 64; σ=σ),
+#                         UNetUpBlock(128, 32; σ=σ),
+#                         UNetUpBlock(64, 16; σ=σ),
+#                         Chain(x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
+#                                 Conv((3, 3), pad = 1, 32=>16;init=_random_normal)),
+#                         ConvUp(16, labels; σ=σ))|> cgpu
+#     FFKappa(conv_down_blocks, conv_blocks, up_blocks)
+# end
 
 
-function (u::FFKappa)(x::AbstractArray)
+# function (u::FFKappa)(x::AbstractArray)
 
-    # n X n X 4 X bs -> (n/2) X (n/2) X 16 X bs
-    op = u.conv_blocks[1](u.conv_down_blocks[1](x))
-    # (n/2) X (n/2) X 16 X bs -> (n/4) X (n/4) X 32 X bs
-    x1 = u.conv_blocks[2](u.conv_down_blocks[2](op))
-    # (n/4) X (n/4) X 32 X bs -> (n/8) X (n/8) X 64 X bs
-    x2 = u.conv_blocks[3](u.conv_down_blocks[3](x1))
-    # (n/8) X (n/8) X 64 X bs -> (n/16) X (n/16) X 128 X bs
-    x3 = u.conv_blocks[4](u.conv_down_blocks[4](x2))
+#     # n X n X 4 X bs -> (n/2) X (n/2) X 16 X bs
+#     op = u.conv_blocks[1](u.conv_down_blocks[1](x))
+#     # (n/2) X (n/2) X 16 X bs -> (n/4) X (n/4) X 32 X bs
+#     x1 = u.conv_blocks[2](u.conv_down_blocks[2](op))
+#     # (n/4) X (n/4) X 32 X bs -> (n/8) X (n/8) X 64 X bs
+#     x2 = u.conv_blocks[3](u.conv_down_blocks[3](x1))
+#     # (n/8) X (n/8) X 64 X bs -> (n/16) X (n/16) X 128 X bs
+#     x3 = u.conv_blocks[4](u.conv_down_blocks[4](x2))
 
-    # (n/16) X (n/16) X 128 X bs
-    up_x3 = u.conv_blocks[5](x3)
-    up_x3 = u.conv_blocks[6](up_x3)
-    up_x3 = u.conv_blocks[7](up_x3)
+#     # (n/16) X (n/16) X 128 X bs
+#     up_x3 = u.conv_blocks[5](x3)
+#     up_x3 = u.conv_blocks[6](up_x3)
+#     up_x3 = u.conv_blocks[7](up_x3)
 
-    # (n/16) X (n/16) X 128 X bs -> (n/8) X (n/8) X 128 X bs
-    up_x1 = u.up_blocks[1](up_x3, x2)
-    # (n/8) X (n/8) X 128 X bs -> (n/4) X (n/4) X 64 X bs
-    up_x2 = u.up_blocks[2](up_x1, x1)
-    # (n/4) X (n/4) X 128 X bs -> (n/2) X (n/2) X 32 X bs
-    up_x4 = u.up_blocks[3](up_x2, op)
+#     # (n/16) X (n/16) X 128 X bs -> (n/8) X (n/8) X 128 X bs
+#     up_x1 = u.up_blocks[1](up_x3, x2)
+#     # (n/8) X (n/8) X 128 X bs -> (n/4) X (n/4) X 64 X bs
+#     up_x2 = u.up_blocks[2](up_x1, x1)
+#     # (n/4) X (n/4) X 128 X bs -> (n/2) X (n/2) X 32 X bs
+#     up_x4 = u.up_blocks[3](up_x2, op)
 
-    return [op, x1, x2, up_x3, up_x1, up_x2, up_x4]
-end
+#     return [op, x1, x2, up_x3, up_x1, up_x2, up_x4]
+# end
 
 # TFFKappa: an encoder that prepares hierarchical inputand uses double ResNet steps
 

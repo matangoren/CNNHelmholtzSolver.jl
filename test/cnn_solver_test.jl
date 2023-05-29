@@ -65,7 +65,7 @@ attenuation = r_type(0.01*4*pi);
 gamma .+= attenuation
 
 # generating rhs
-rhs = get_rhs(n,m,h; blocks=8)
+rhs = get_rhs(n,m,h; blocks=1)
 println("size of rhs $(size(rhs))")
 
 
@@ -75,11 +75,11 @@ useSommerfeldBC = true
 Helmholtz_param = HelmholtzParam(M,Float64.(gamma),Float64.(medium),Float64(omega_fwi),true,useSommerfeldBC)
 
 
-solver = getCnnHelmholtzSolver("VU")
+solver = getCnnHelmholtzSolver("JU")
 solver = copySolver(solver)
 solver = setMediumParameters(solver, Helmholtz_param)
 
 
-println("VU")
-result_3_9, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver)|>cpu
+println("JU")
+result_3_9, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver,1)|>cpu
 plot_results("test_16_cnn_solver_point_source_result_JU", result_3_9, n ,m)
