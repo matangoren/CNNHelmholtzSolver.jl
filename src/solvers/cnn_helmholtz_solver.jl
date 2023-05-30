@@ -76,7 +76,7 @@ function setupSolver!(param::CnnHelmholtzSolver)
     println("after create")
     @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model #"../../models/$(test_name).bson" model
     @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
-    param.model = model|>cgpu
+    # param.model = model|>cgpu
     param.kappa_features = Base.invokelatest(get_kappa_features,param.model, param.n, param.m, param.kappa, param.gamma; arch=arch, indexes=indexes)
     param.model_parameters = DICT
     
@@ -123,8 +123,10 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
         print("GG")
         B = real(B) - im*imag(B)
     end
-
+    
+    param.model = param.model|>cgpu
     res = Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, B|>cgpu, param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"], solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol)
+    param.model = param.model|>cpu
     
     if doTranspose == 1
         # negate the imaginary part of res
@@ -142,5 +144,5 @@ end
 
 import jInv.LinearSolvers.copySolver;
 function copySolver(param::CnnHelmholtzSolver)
-    return getCnnHelmholtzSolver(param.solver_type)
+    return getCnnHelmholtzSolver(param.solver_type; solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol) 
 end
