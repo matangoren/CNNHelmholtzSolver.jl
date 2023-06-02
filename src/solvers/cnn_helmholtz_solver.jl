@@ -1,4 +1,4 @@
-export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setupSolver,setMediumParameters,setSolverType
+export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setMediumParameters,setSolverType
 
 include("../unet/model.jl")
 include("../data.jl")
@@ -15,12 +15,29 @@ function get_solver_type(solver_name)
     return Dict("before_jacobi"=>false, "unet"=>false, "after_jacobi"=>false, "after_vcycle"=>true)
 end
 
+function setupSolver()
+    file = matopen(joinpath(@__DIR__, "../../models/$(model_name)/model_parameters"), "r"); DICT = read(file); close(file);
+    e_vcycle_input = DICT["e_vcycle_input"]
+    kappa_input = DICT["kappa_input"]
+    gamma_input = DICT["gamma_input"]
+    kernel = Tuple(DICT["kernel"])
+    model_type = @eval $(Symbol(DICT["model_type"])) # FFSDNUnet
+    k_type = @eval $(Symbol(DICT["k_type"])) # TFFKappa
+    resnet_type = @eval $(Symbol(DICT["resnet_type"])) # TSResidualBlockI
+    k_chs = DICT["k_chs"]
+    indexes = DICT["indexes"]
+    σ = @eval $(Symbol(DICT["sigma"])) # elu
+    arch = DICT["arch"]
 
-println(use_gpu)
-println(cgpu)
-println(a_type)
-println("pwd $(pwd())")
-println("dir $(@__DIR__)")
+    model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
+    model = model|>cpu
+    println("after create")
+    @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model #"../../models/$(test_name).bson" model
+    @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
+    
+    return model|>cgpu, DICT
+end
+
 
 model_name = "without_alpha"
 
@@ -43,10 +60,16 @@ mutable struct CnnHelmholtzSolver<: AbstractSolver
 end
 
 function getCnnHelmholtzSolver(solver_name; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100, solver_tol=1e-8, relaxation_tol=1e-4)
+    if model == []
+        model, model_parameters = setupSolver()
+    end
     return CnnHelmholtzSolver(get_solver_type(solver_name), n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol)
 end
 
 function getCnnHelmholtzSolver(solver_type::Dict; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100, solver_tol=1e-8, relaxation_tol=1e-4)
+    if model == []
+        model, model_parameters = setupSolver()
+    end
     return CnnHelmholtzSolver(solver_type, n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol)
 end
 
@@ -54,33 +77,6 @@ end
 import jInv.LinearSolvers.solveLinearSystem;
 function solveLinearSystem(A,B,param::CnnHelmholtzSolver,doTranspose::Int=0)
     return solveLinearSystem!(A,B,[],param,doTranspose)
-end
-
-function setupSolver!(param::CnnHelmholtzSolver)
-    file = matopen(joinpath(@__DIR__, "../../models/$(model_name)/model_parameters"), "r"); DICT = read(file); close(file);
-    e_vcycle_input = DICT["e_vcycle_input"]
-    kappa_input = DICT["kappa_input"]
-    gamma_input = DICT["gamma_input"]
-    kernel = Tuple(DICT["kernel"])
-    model_type = FFSDNUnet #@eval $(Symbol(DICT["model_type"]))
-    k_type = TFFKappa # @eval $(Symbol(DICT["k_type"])) # TFFKappa
-    resnet_type = TSResidualBlockI #@eval $(Symbol(DICT["resnet_type"])) # TSResidualBlockI
-    k_chs = DICT["k_chs"]
-    indexes = DICT["indexes"]
-    σ = elu #@eval $(Symbol(DICT["sigma"]))
-    arch = DICT["arch"]
-
-    # param.model = load_model!(joinpath(@__DIR__, "../../models/$(model_name)/model.bson"), e_vcycle_input, kappa_input, gamma_input; kernel=kernel, model_type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
-    model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
-    model = model|>cpu
-    println("after create")
-    @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model #"../../models/$(test_name).bson" model
-    @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
-    param.model = model|>cgpu
-    param.kappa_features = Base.invokelatest(get_kappa_features,param.model, param.n, param.m, param.kappa, param.gamma; arch=arch, indexes=indexes)
-    param.model_parameters = DICT
-    
-    return param
 end
 
 function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::HelmholtzParam)    
@@ -94,14 +90,8 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
     
     param.omega = omega_exact * c
     param.kappa = a_float_type(slowness .* (Helmholtz_param.omega/(omega_exact*c))) # normalized slowness * w_fwi/w_exact
-    # heatmap(param.kappa|>cpu, color=:blues)
-    # savefig("m_from_fwi")
-    # heatmap(param.gamma|>cpu, color=:blues)
-    # savefig("gamma_from_fwi")
-    
-    if param.model == []
-        param = setupSolver!(param)
-    end
+
+    param.kappa_features = Base.invokelatest(get_kappa_features,param.model, param.n, param.m, param.kappa, param.gamma; arch=param.model_parameters["arch"], indexes=param.model_parameters["indexes"])
 
     return param
 end
@@ -120,17 +110,13 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
 
     if doTranspose == 1
         # negate the imaginary part of B (rhs)
-        print("GG")
         B = real(B) - im*imag(B)
     end
 
-    # param.model = param.model|>cgpu
     res = Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, B|>cgpu, param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"], solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol)
-    # param.model = param.model|>cpu
     
     if doTranspose == 1
         # negate the imaginary part of res
-        print("GG")
         res = real(res) - im*imag(res)
     end
     return res, param
@@ -144,5 +130,5 @@ end
 
 import jInv.LinearSolvers.copySolver;
 function copySolver(param::CnnHelmholtzSolver)
-    return getCnnHelmholtzSolver(param.solver_type; solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol) 
+    return getCnnHelmholtzSolver(param.solver_type; model=param.model, model_parameters=param.model_parameters, solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol) 
 end
