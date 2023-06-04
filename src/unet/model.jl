@@ -8,11 +8,11 @@ BatchNormWrap(out_ch) = Chain(x->expand_dims(x,2)|>cgpu,
 # check with pad=2 and in up to.
 ConvDown(in_chs,out_chs;kernel = (5,5), σ=elu) = Chain(Conv(kernel, in_chs=>out_chs, stride=(2,2), pad = 2; init=_random_normal),
                                                         BatchNorm(out_chs), 
-                                                        x->(σ == elu ? σ.(x,0.2f0) : σ.(x)))|> cgpu
+                                                        x->(σ == elu ? σ.(x,0.2f0) : σ.(x)))
 
 ConvUp(in_chs,out_chs;kernel = (5,5), σ=elu) = Chain(x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
                                                     ConvTranspose(kernel, in_chs=>out_chs, stride=(2, 2), pad = 2; init=_random_normal), 
-                                                    BatchNorm(out_chs))|> cgpu
+                                                    BatchNorm(out_chs))
 
                                                     
 struct UNetUpBlock
@@ -33,6 +33,32 @@ UNetConvBlock(in_chs, out_chs; kernel = (3, 3), pad=1, σ=elu) =
                 BatchNorm(out_chs),
                 x-> (σ == elu ? σ.(x,0.2f0) : σ.(x)))|> cgpu
 
+
+
+
+struct bottleNeckBlock
+    expand_layer
+    depth_layer
+    shrink_layer
+end
+
+@functor bottleNeckBlock
+
+function bottleNeckBlock(in_channels, expanded_channels; kernel=(3,3), pad=1, σ=elu)
+    expand_layer = ConvUp(in_channels, expanded_channels; kernel=(1,1), σ=identity)|>cgpu
+    depth_layer = Chain(DepthwiseConv(kernel, expanded_channels=>expanded_channels, pad=pad; init=_random_normal),
+                        BatchNorm(expanded_channels), 
+                        x->(σ == elu ? σ.(x,0.2f0) : σ.(x)))|> cgpu
+    shrink_layer = ConvDown(expanded_channels, in_channels; kernel=(1,1), σ=identity)|>cgpu
+
+    bottleNeckBlock(expand_layer, depth_layer, shrink_layer)
+end
+
+function (u::bottleNeckBlock)(x::AbstractArray, encoded_vector::AbstractArray)
+    x = u.expand_layer(x)
+    x = u.depth_layer(x) + encoded_vector
+    return u.shrink_layer(x)
+end
 
 # relevant models
 struct FFSDNUnet
@@ -94,74 +120,79 @@ function (u::FFSDNUnet)(x::AbstractArray, features)
     up_x4 = u.up_blocks[3](cat(up_x2, features[6], dims=3), op)
     # (n/2) X (n/2) X 32 X bs -> (n/2) X (n/2) X 16 X bs
     up_x5 = u.up_blocks[4](cat(up_x4, features[7], dims=3))
-    # (n/2) X (n/2) X 16 X bs -> n X n X 2 X bs
 
     # if boundary_gamma === nothing
     #     return u.up_blocks[end](up_x5)
     # end
     # e = (1 .- (u.alpha .* boundary_gamma)) |> cgpu
+
+    # (n/2) X (n/2) X 16 X bs -> n X n X 2 X bs
     return u.up_blocks[end](up_x5)
 end
 
-# FFKappa + FFSDNUnet: an encoder that prepares hierarchical input
 
-# struct FFKappa
-#     conv_down_blocks
-#     conv_blocks
-#     up_blocks
-# end
-  
-# @functor FFKappa
+# solver
+struct Solver
+    downsample_in_16
+    downsample_16_32
+    downsample_32_64
+    downsample_64_128
+    downsample_128_256
+    bottleneck_16
+    bottleneck_32
+    bottleneck_64
+    bottleneck_128
+    conv_256
+    upsample_256_128
+    upsample_128_64
+    upsample_64_32
+    upsample_32_16
+    upsample_16_out
+end
 
-# function FFKappa(channels::Int = 2, labels::Int = channels; kernel = (3, 3), σ=elu, resnet_type=SResidualBlock)
-#     conv_down_blocks = Chain(ConvDown(channels,16;σ=σ),
-#             ConvDown(16,32;σ=σ),
-#             ConvDown(32,64;σ=σ),
-#             ConvDown(64,128;σ=σ))|> cgpu
+@functor Solver
 
-#     conv_blocks = Chain(resnet_type(16,16; kernel = kernel, σ=σ),
-#         resnet_type(32,32; kernel = kernel, σ=σ),
-#         resnet_type(64,64; kernel = kernel, σ=σ),
-#         resnet_type(128,128; kernel = kernel, σ=σ),
-#         resnet_type(128,128; kernel = kernel, σ=σ),
-#         resnet_type(128,128; kernel = kernel, σ=σ),
-#         resnet_type(128,128; kernel = kernel, σ=σ))|> cgpu
+function Solver(channels::Int = 2, labels::Int = channels; kernel = (3, 3), σ=elu, resnet_type=SResidualBlock)
+    downsample_in_16 = ConvDown(channels,16;σ=σ) |> cgpu
+    downsample_16_32 = ConvDown(16,32;σ=σ) |> cgpu
+    downsample_32_64 = ConvDown(32,64;σ=σ) |> cgpu
+    downsample_64_128 = ConvDown(64,128;σ=σ) |> cgpu
+    downsample_128_256 = ConvDown(128,256;σ=σ) |> cgpu
 
-#     up_blocks = Chain(UNetUpBlock(128, 64; σ=σ),
-#                         UNetUpBlock(128, 32; σ=σ),
-#                         UNetUpBlock(64, 16; σ=σ),
-#                         Chain(x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
-#                                 Conv((3, 3), pad = 1, 32=>16;init=_random_normal)),
-#                         ConvUp(16, labels; σ=σ))|> cgpu
-#     FFKappa(conv_down_blocks, conv_blocks, up_blocks)
-# end
+    bottleneck_16 = bottleNeckBlock(16,32)
+    bottleneck_32 = bottleNeckBlock(32,64)
+    bottleneck_64 = bottleNeckBlock(64,128)
+    bottleneck_128 = bottleNeckBlock(128,256)
 
+    conv_256 = resnet_type(256,256; kernel = kernel, σ=σ) |> cgpu
 
-# function (u::FFKappa)(x::AbstractArray)
+    upsample_256_128 = ConvUp(256,128; σ=σ) |> cgpu
+    upsample_128_64 = ConvUp(128,64; σ=σ) |> cgpu
+    upsample_64_32 = ConvUp(64,32; σ=σ) |> cgpu
+    upsample_32_16 = ConvUp(32,16; σ=σ) |> cgpu
+    upsample_16_out = ConvUp(16,channels; σ=σ) |> cgpu
 
-#     # n X n X 4 X bs -> (n/2) X (n/2) X 16 X bs
-#     op = u.conv_blocks[1](u.conv_down_blocks[1](x))
-#     # (n/2) X (n/2) X 16 X bs -> (n/4) X (n/4) X 32 X bs
-#     x1 = u.conv_blocks[2](u.conv_down_blocks[2](op))
-#     # (n/4) X (n/4) X 32 X bs -> (n/8) X (n/8) X 64 X bs
-#     x2 = u.conv_blocks[3](u.conv_down_blocks[3](x1))
-#     # (n/8) X (n/8) X 64 X bs -> (n/16) X (n/16) X 128 X bs
-#     x3 = u.conv_blocks[4](u.conv_down_blocks[4](x2))
+    Solver(downsample_in_16, downsample_16_32,downsample_32_64, downsample_64_128,
+            downsample_128_256, bottleneck_16, bottleneck_32, bottleneck_64,
+            bottleneck_128, conv_256, upsample_256_128, upsample_128_64,
+            upsample_64_32, upsample_32_16, upsample_16_out)
+end
 
-#     # (n/16) X (n/16) X 128 X bs
-#     up_x3 = u.conv_blocks[5](x3)
-#     up_x3 = u.conv_blocks[6](up_x3)
-#     up_x3 = u.conv_blocks[7](up_x3)
+function (u::Solver)(x::AbstractArray, encoded_vectors)
+    x_16 = u.bottleneck_16(u.downsample_in_16(x), encoded_vectors[1])
+    x_32 = u.bottleneck_32(u.downsample_16_32(x_16), encoded_vectors[2])
+    x_64 = u.bottleneck_64(u.downsample_32_64(x_32), encoded_vectors[3])
+    x_128 = u.bottleneck_128(u.downsample_64_128(x_64), encoded_vectors[4])
 
-#     # (n/16) X (n/16) X 128 X bs -> (n/8) X (n/8) X 128 X bs
-#     up_x1 = u.up_blocks[1](up_x3, x2)
-#     # (n/8) X (n/8) X 128 X bs -> (n/4) X (n/4) X 64 X bs
-#     up_x2 = u.up_blocks[2](up_x1, x1)
-#     # (n/4) X (n/4) X 128 X bs -> (n/2) X (n/2) X 32 X bs
-#     up_x4 = u.up_blocks[3](up_x2, op)
+    x_256 = u.conv_256(u.downsample_128_256(x_128) + encoded_vectors[5])
 
-#     return [op, x1, x2, up_x3, up_x1, up_x2, up_x4]
-# end
+    up_x_128 = u.upsample_256_128(x_256) + x_128
+    up_x_64 = u.upsample_128_64(up_x_128) + x_64
+    up_x_32 = u.upsample_64_32(up_x_64) + x_32
+    up_x_16 = u.upsample_32_16(up_x_32) + x_16
+
+    return u.upsample_16_out(up_x_16)
+end
 
 # TFFKappa: an encoder that prepares hierarchical inputand uses double ResNet steps
 
@@ -229,6 +260,50 @@ function (u::TFFKappa)(x::AbstractArray)
 
     return [op, x1, x2, up_x3, up_x1, up_x2, up_x4]
 end
+
+# Encoder: half TFFKappa unet netwrok (only encoding down-stream)
+struct Encoder
+    conv_down_blocks
+    conv_blocks
+end
+
+@functor Encoder
+function Encoder(channels::Int = 2, labels::Int = channels; kernel = (3, 3), σ=elu, resnet_type=SResidualBlock)
+    conv_down_blocks = Chain(ConvDown(channels,16;σ=σ),
+            ConvDown(16,32;σ=σ),
+            ConvDown(32,64;σ=σ),
+            ConvDown(64,128;σ=σ),
+            ConvDown(128,256; σ=σ))|> cgpu
+
+    conv_blocks = Chain(resnet_type(16,16; kernel = kernel, σ=σ),
+        resnet_type(16,16; kernel = kernel, σ=σ),
+        resnet_type(32,32; kernel = kernel, σ=σ),
+        resnet_type(32,32; kernel = kernel, σ=σ),
+        resnet_type(64,64; kernel = kernel, σ=σ),
+        resnet_type(64,64; kernel = kernel, σ=σ),
+        resnet_type(128,128; kernel = kernel, σ=σ),
+        resnet_type(128,128; kernel = kernel, σ=σ),
+        resnet_type(256,256; kernel = kernel, σ=σ),
+        resnet_type(256,256; kernel = kernel, σ=σ))|> cgpu
+
+        Encoder(conv_down_blocks, conv_blocks)
+end
+
+function (u::Encoder)(x::AbstractArray)
+    # n X n X 4 X bs -> (n/2) X (n/2) X 16 X bs
+    x_16 = u.conv_blocks[2](u.conv_blocks[1](u.conv_down_blocks[1](x)))
+    # (n/2) X (n/2) X 16 X bs -> (n/4) X (n/4) X 32 X bs
+    x_32 = u.conv_blocks[4](u.conv_blocks[3](u.conv_down_blocks[2](op)))
+    # (n/4) X (n/4) X 32 X bs -> (n/8) X (n/8) X 64 X bs
+    x_64 = u.conv_blocks[6](u.conv_blocks[5](u.conv_down_blocks[3](x1)))
+    # (n/8) X (n/8) X 64 X bs -> (n/16) X (n/16) X 128 X bs
+    x_128 = u.conv_blocks[8](u.conv_blocks[7](u.conv_down_blocks[4](x2)))
+    # (n/16) X (n/16) X 128 X bs -> (n/32) X (n/32) X 256 X bs
+    x_256 = u.conv_blocks[10](u.conv_blocks[9](u.conv_down_blocks[5](x2)))
+
+    return [x_16, x_32, x_64, x_128, x_256]
+end
+
 
 # Input as is without activation and batch normalization
 # and doubling the channels and reducing back between the 2 convolution actions

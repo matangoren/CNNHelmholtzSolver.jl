@@ -7,28 +7,28 @@ using DelimitedFiles
 function generate_vcycle!(n, m, h, kappa, omega, gamma, b; v2_iter=10, level=3, restrt=1)
 
     sl_matrix_level3, h_matrix_level3 = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
-    kappa_coarse = down(reshape(kappa, n+1, m+1, 1, 1)|>pu)[:,:,1,1]
-    gamma_coarse = down(reshape(gamma, n+1, m+1, 1, 1)|>pu)[:,:,1,1]
+    kappa_coarse = down(reshape(kappa, n+1, m+1, 1, 1))[:,:,1,1]
+    gamma_coarse = down(reshape(gamma, n+1, m+1, 1, 1))[:,:,1,1]
     sl_matrix_level2, h_matrix_level2 = get_helmholtz_matrices!(kappa_coarse, omega, gamma_coarse; alpha=r_type(0.5))
-    kappa_coarse = down(reshape(kappa_coarse, Int64((n/2)+1),  Int64((m/2)+1), 1, 1)|>pu)[:,:,1,1]
-    gamma_coarse = down(reshape(gamma_coarse,  Int64((n/2)+1),  Int64((m/2)+1), 1, 1)|>pu)[:,:,1,1]
+    kappa_coarse = down(reshape(kappa_coarse, Int64((n/2)+1),  Int64((m/2)+1), 1, 1))[:,:,1,1]
+    gamma_coarse = down(reshape(gamma_coarse,  Int64((n/2)+1),  Int64((m/2)+1), 1, 1))[:,:,1,1]
 
     sl_matrix_level1, h_matrix_level1 = get_helmholtz_matrices!(kappa_coarse, omega, gamma_coarse; alpha=r_type(0.5))
 
     A(v::a_type) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, 1), h_matrix_level3; h=h))
     function M(v::a_type)
-        v = reshape(v, n+1, m+1)
-        x = zeros(c_type,n+1,m+1)|>pu
+        v = reshape(v, n+1, m+1,1,1)
+        x = a_type(zeros(n+1,m+1,1,1))
         x, = v_cycle_helmholtz!(n, m, h, x, v, h_matrix_level1, sl_matrix_level1, h_matrix_level2, sl_matrix_level2, h_matrix_level3, sl_matrix_level3;  v2_iter=v2_iter, level=level)
         return vec(x)
     end
 
-    x0 = zeros(c_type,n+1,m+1,1,1)|>pu
+    x0 = a_type(zeros(n+1,m+1,1,1))
     if restrt == -1
         restrt = rand(1:10)
     end
     x_vcycle, = fgmres_func(A, vec(b), restrt, tol=1e-10, maxIter=1, M=M, x=vec(x0), out=-1, flexible=true)
-    x_vcycle_channels = complex_grid_to_channels!(x_vcycle)
+    x_vcycle_channels = complex_grid_to_channels!(reshape(x_vcycle,n+1,m+1,1,1))
     return x_vcycle, x_vcycle_channels
 end
 
@@ -39,26 +39,25 @@ function generate_jacobi!(n, m, h, kappa, omega, gamma, b; v2_iter=10, level=3, 
 
     A(v::a_type) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, 1), h_matrix; h=h))
     function M(v::a_type)
-        v = reshape(v, n+1, m+1)
-        x = zeros(c_type,n+1,m+1)|>pu
+        v = reshape(v, n+1, m+1,1,1)
+        x = a_type(zeros(n+1,m+1,1,1))
         x = jacobi_helmholtz_method!(n, m, h, x, v, sl_matrix)
         return vec(x)
     end
 
-    x0 = zeros(c_type,n+1,m+1,1,1)|>pu
+    x0 = a_Type(zeros(n+1,m+1,1,1))
     if restrt == -1
         restrt = rand(1:10)
     end
 
     x_vcycle, = fgmres_func(A, vec(b), restrt, tol=1e-10, maxIter=1,
                                                     M=M, x=vec(x0), out=-1, flexible=true)
-    x_vcycle_channels = complex_grid_to_channels!(x_vcycle)
+    x_vcycle_channels = complex_grid_to_channels!(reshape(x_vcycle,n+1,m+1,1,1))
     return x_vcycle, x_vcycle_channels
 end
 
 # r ← Ax - A(FGMRES(A=Helmholtz, M=V-Cycle, b, x = 0, maxIter = 1))
 function generate_r_vcycle!(n, m, h, kappa, omega, gamma, x_true; v2_iter=10, level=3, restrt=1, jac=false)
-
     _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
     b_true = helmholtz_chain!(x_true, helmholtz_matrix; h=h)
 
@@ -95,7 +94,7 @@ function generate_random_data!(test_name, data_set_m, n, m, h, kappa, omega, gam
     for i = 1:data_set_m
 
         if same_kappa == false
-            kappa, c = a_type(get2DSlownessLinearModel(n,m; normalized=true))
+            kappa, c = get2DSlownessLinearModel(n,m; normalized=true)|>cgpu
         end
         
         # Generate Random Sample
