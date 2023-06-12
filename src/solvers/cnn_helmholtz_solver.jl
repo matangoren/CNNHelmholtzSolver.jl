@@ -39,7 +39,9 @@ function setupSolver()
 end
 
 
-model_name = "without_alpha"
+# model_name = "without_alpha"
+# model_name = "Encoder-Solver_full_dataset"
+model_name = "dataset_560x304"
 
 mutable struct CnnHelmholtzSolver<: AbstractSolver
     solver_type::Dict
@@ -109,8 +111,7 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
     end
 
     if doTranspose == 1
-        # negate the imaginary part of B (rhs)
-        B = real(B) - im*imag(B)
+        B = real(B) - im*imag(B) # negate the imaginary part of B (rhs)
     end
 
     res = Base.invokelatest(solve, param.solver_type, param.model, param.n, param.m, param.h, B|>cgpu, param.kappa, param.kappa_features, param.omega, param.gamma, 10, 30; arch=(param.model_parameters)["arch"], solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol)

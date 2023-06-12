@@ -38,14 +38,13 @@ function laplacian_conv!(grid; h=[0.0225 ; 0.014])
     return conv(grid)
 end
 
-function up(grid)
-    # we assume grid to be of type Float
+function up(grid::a_float_type)
     smooth_up_filter = (r_type.( reshape((1/4) * [1 2 1;2 4.0 2;1 2 1],3,3,1,1)))|>cgpu
     up_conv = ConvTranspose(smooth_up_filter, (zeros(r_type,1))|>cgpu, stride=2,pad=1)|>cgpu;
-    return up_conv(real(grid))
+    return up_conv(grid)
 end
 
-function down(grid)
+function down(grid::Union{a_type, a_float_type})
     smooth_down_filter = (r_type.( reshape((1/16) * [1 2 1;2 4 2;1 2 1],3,3,1,1)))|>cgpu
     down_conv = Conv(smooth_down_filter, (zeros(r_type,1))|>cgpu, stride=2,pad=1)|>cgpu;
     return down_conv(grid)
@@ -60,6 +59,7 @@ function helmholtz_chain!(grid::a_type, matrix::a_type; h=[0.0225 ; 0.014])
     # return y
 
     # mirror-padding
+    
     term = matrix .* (grid)
     helmholtz_filter = get_laplacian_filter(h)
     conv = Conv(helmholtz_filter, (zeros(r_type,1))|>cgpu; pad=0)|>cgpu

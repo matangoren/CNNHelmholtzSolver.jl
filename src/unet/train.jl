@@ -41,7 +41,7 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
                             model_type=SUnet, k_type=NaN, k_chs=-1, indexes=3, data_train_path="", data_test_path="", full_loss=false, residual_loss=false, error_details=false, gmres_restrt=1, σ=elu, same_kappa=false, linear_kappa=true) #, model=NaN)
 
     @info "$(Dates.format(now(), "HH:MM:SS")) - Start Train $(test_name)"
-
+    
     train_set_path = generate_random_data!(test_name, train_size, n, m, h, kappa, omega, gamma;
                                                 e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, data_augmentetion =data_augmentetion,
                                                 kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, 
@@ -51,16 +51,14 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
                                                 e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level,
                                                 kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, 
                                                 kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=same_kappa, linear_kappa=linear_kappa, data_folder_type="test")                                           
-    
     @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
-    # train_size = 16
-    # test_size = 16
+
     if use_gpu == true
         println("after data generation GPU memory status $(CUDA.memory_status())")
     end
 
-    train_set_x, train_set_y = get_data_x_y(train_set_path, train_size, n, m, gamma)
-    test_set_x, test_set_y = get_data_x_y(test_set_path, test_size, n, m, gamma)
+    train_set_x, train_set_y = get_data_x_y(train_set_path, train_size, n, m, gamma|>cpu)
+    test_set_x, test_set_y = get_data_x_y(test_set_path, test_size, n, m, gamma|>cpu)
 
     if use_gpu == true
         println("after data x_y GPU memory status $(CUDA.memory_status())")
@@ -74,8 +72,7 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
     train_data_loader = DataLoader((train_set_x, train_set_y), batchsize=batch_size, shuffle=true)
     test_data_loader = DataLoader((test_set_x, test_set_y), batchsize=batch_size, shuffle=false)
 
-    # boundary_gamma = r_type.(getABL([n+1,m+1], false, [10,10], Float64(1.0)))|>cgpu
-
+    
     loss!(x, y) = error_loss!(model, x, y; in_tuning=same_kappa)
     loss!(tuple) = loss!(tuple[1], tuple[2])
 
@@ -94,18 +91,16 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
             smaller_lr = ceil(Int64,smaller_lr / 2)
             @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr) Batch Size $(batch_size)"
         end
-        # println("before train alpha = $(model.solve_subnet.alpha)")
+        
         Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
-        # println("after train alpha = $(model.solve_subnet.alpha)")
+
         @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration))"    
-
         if mod(iteration,4) == 0
-            train_loss[iteration] = dataset_loss!(train_data_loader, loss!) / train_size
-            test_loss[iteration] = dataset_loss!(test_data_loader, loss!) / test_size
-            CSV.write("models/$(test_name)/train_log/loss.csv", DataFrame(Train=[train_loss[iteration]], Test=[test_loss[iteration]]), delim = ';',append=true)
-            @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Train loss value = $(train_loss[iteration]) , Test loss value = $(test_loss[iteration])"    
+            train_loss[Int64(iteration/4)] = dataset_loss!(train_data_loader, loss!) / train_size
+            test_loss[Int64(iteration/4)] = dataset_loss!(test_data_loader, loss!) / test_size
+            CSV.write("models/$(test_name)/train_log/loss.csv", DataFrame(Train=[train_loss[Int64(iteration/4)]], Test=[test_loss[Int64(iteration/4)]]), delim = ';',append=true)
+            @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Train loss value = $(train_loss[Int64(iteration/4)]) , Test loss value = $(test_loss[Int64(iteration/4)])"    
         end
-
         
       
         if mod(iteration,30) == 0

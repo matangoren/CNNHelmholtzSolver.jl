@@ -19,19 +19,6 @@ function jacobi_helmholtz_method!(n, m, h, x, b, matrix; max_iter=1, w=0.8, use_
     return x
 end
 
-# function jacobi_helmholtz_method_channels!(n, m, h, x, b, matrix, matrixch; max_iter=1, w=0.8, use_gmres_alpha=0)
-#     h1 = 1.0 / (h[1]^2)
-#     h2 = 1.0 / (h[2]^2)
-#     for i in 1:max_iter
-#         y = helmholtz_chain_channels!(x, matrix; h=h)
-#         residual = b - y
-#         d = r_type(2.0 * (h1 + h2)) .- matrixch
-#         alpha = r_type(w) ./ d
-#         x .+= (alpha .* residual)
-#     end
-#     return x
-# end
-
 function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter = 1, v2_iter = 10, use_gmres_alpha = 0, alpha= 0.5, log = 0, level = nothing, blocks=1, tol=1e-4)
     shifted_laplacian_matrix, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(alpha))
     # Relax on Ax = b v1_iter times with initial guess x
@@ -69,8 +56,8 @@ function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter =
         end
     else
         # Coarsest grid
-        A_Coarsest(v::a_type) =  vec(helmholtz_chain!(reshape(v,n+1,m+1,1,blocks), shifted_laplacian_matrix; h=h))
-        M_Coarsest(v::a_type) = vec(jacobi_helmholtz_method!(n, m, h, x, reshape(v,n+1,m+1,1,blocks), shifted_laplacian_matrix; max_iter=1, use_gmres_alpha=use_gmres_alpha))
+        A_Coarsest(v) =  vec(helmholtz_chain!(reshape(v,n+1,m+1,1,blocks), shifted_laplacian_matrix; h=h))
+        M_Coarsest(v) = vec(jacobi_helmholtz_method!(n, m, h, x, reshape(v,n+1,m+1,1,blocks), shifted_laplacian_matrix; max_iter=1, use_gmres_alpha=use_gmres_alpha))
         x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=tol, maxIter=1,
                                                     M=M_Coarsest, x=vec(x), out=-1, flexible=true)
         x = reshape(x,n+1,m+1,1,blocks)
@@ -121,13 +108,13 @@ function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_
 
         if log == 1
             r1 = residual_fine
-            r2 = b - reshape(helmholtz_chain!(reshape(x, n+1, m+1, 1, 1), h_matrix; h=h), n+1, m+1)
+            r2 = b - reshape(helmholtz_chain!(reshape(x, n+1, m+1, 1, 1), h_matrix; h=h), n+1, m+1, 1, 1)
             println("n = $(n), norm of x = $(norm(x)), norm of fine_error = $(norm(fine_error)), residual before vcycle =$(norm(r1)/norm(b)), residual after vcycle =$(norm(r2)/norm(b)), level =$(level)")
         end
     else
         # Coarsest grid
-        A_Coarsest(v::a_type) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, 1), sl_matrix; h=h))
-        M_Coarsest(v::a_type) = vec(jacobi_helmholtz_method!(n, m, h, x, reshape(v, n+1, m+1,1,1), sl_matrix)) #         M_Jacobi(n, h, x, sl_matrix, 1, v; use_gmres_alpha=use_gmres_alpha)
+        A_Coarsest(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, 1), sl_matrix; h=h))
+        M_Coarsest(v) = vec(jacobi_helmholtz_method!(n, m, h, x, reshape(v, n+1, m+1,1,1), sl_matrix)) #         M_Jacobi(n, h, x, sl_matrix, 1, v; use_gmres_alpha=use_gmres_alpha)
         x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=1e-15, maxIter=1,
                                                     M=M_Coarsest, x=vec(x), out=-1, flexible=true)
         x = reshape(x, n+1, m+1,1,1)
@@ -138,53 +125,3 @@ function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_
 
     return x, h_matrix
 end
-
-
-# Eran Code
-# function absorbing_layer!(gamma::Array,pad,ABLamp;NeumannAtFirstDim=false)
-
-#     n=size(gamma)
-
-#     #FROM ERAN ABL:
-
-#     b_bwd1 = ((pad[1]:-1:1).^2)./pad[1]^2;
-# 	b_bwd2 = ((pad[2]:-1:1).^2)./pad[2]^2;
-
-# 	b_fwd1 = ((1:pad[1]).^2)./pad[1]^2;
-# 	b_fwd2 = ((1:pad[2]).^2)./pad[2]^2;
-# 	I1 = (n[1] - pad[1] + 1):n[1];
-# 	I2 = (n[2] - pad[2] + 1):n[2];
-
-# 	if NeumannAtFirstDim==false
-# 		gamma[:,1:pad[2]] += ones(n[1],1)*b_bwd2'.*ABLamp;
-# 		gamma[1:pad[1],1:pad[2]] -= b_bwd1*b_bwd2'.*ABLamp;
-# 		gamma[I1,1:pad[2]] -= b_fwd1*b_bwd2'.*ABLamp;
-# 	end
-
-# 	gamma[:,I2] +=  (ones(n[1],1)*b_fwd2').*ABLamp;
-# 	gamma[1:pad[1],:] += (b_bwd1*ones(1,n[2])).*ABLamp;
-# 	gamma[I1,:] += (b_fwd1*ones(1,n[2])).*ABLamp;
-# 	gamma[1:pad[1],I2] -= (b_bwd1*b_fwd2').*ABLamp;
-# 	gamma[I1,I2] -= (b_fwd1*b_fwd2').*ABLamp;
-
-#     return gamma
-# end
-
-# function fgmres_v_cycle_helmholtz!(n, m, h, b, kappa, omega, gamma; restrt=30, maxIter=10)
-#     shifted_laplacian_matrix, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=0.5)
-    
-#     A(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, 1), helmholtz_matrix; h=h))
-#     function M(v)
-#         v = reshape(v, n+1, m+1)
-#         x = zeros(gmres_type,n+1,m+1)|>pu
-#         x, = v_cycle_helmholtz!(n, m, h, x, v, kappa, omega, gamma; u=1,
-#                     v1_iter = 1, v2_iter = 20, alpha=0.5, log = 0, level = 3)
-#         return vec(x)
-#     end
-
-#     x = zeros(gmres_type,n+1,m+1)|>pu
-#     x,flag,err,iter,resvec = fgmres_func(A, vec(b), restrt, tol=1e-30, maxIter=maxIter,
-#                                                     M=M, x=vec(x), out=-1, flexible=true)
-
-#     return reshape(x, n+1, m+1)
-# end

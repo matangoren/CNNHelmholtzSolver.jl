@@ -2,6 +2,7 @@ using Statistics
 using LinearAlgebra
 using Flux
 using Flux: @functor
+using Flux.Data: DataLoader
 using LaTeXStrings
 using KrylovMethods
 using Distributions: Normal
@@ -23,7 +24,9 @@ r_type = Float32
 c_type = ComplexF32
 u_type = Float32
 gmres_type = ComplexF32
+
 use_gpu = true
+
 if use_gpu == true
     using CUDA
     CUDA.allowscalar(true)
