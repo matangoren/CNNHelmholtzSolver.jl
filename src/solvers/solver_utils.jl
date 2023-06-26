@@ -1,5 +1,7 @@
 include("../multigrid/helmholtz_methods.jl")
 include("../gpu_krylov.jl")
+include("../unet/losses.jl")
+include("../unet/CustomDatasets.jl")
 
 if use_gpu == true
     fgmres_func = gpu_flexible_gmres
@@ -7,8 +9,49 @@ else
     fgmres_func = KrylovMethods.fgmres
 end
 
+function get_solver_type(solver_name)
+    if solver_name == "JU"
+        return Dict("before_jacobi"=>true, "unet"=>true, "after_jacobi"=>true, "after_vcycle"=>false)
+    elseif solver_name == "VU"
+        return Dict("before_jacobi"=>false, "unet"=>true, "after_jacobi"=>false, "after_vcycle"=>true)
+    elseif solver_name == "U"
+        return Dict("before_jacobi"=>false, "unet"=>true, "after_jacobi"=>false, "after_vcycle"=>false)
+    end
+    return Dict("before_jacobi"=>false, "unet"=>false, "after_jacobi"=>false, "after_vcycle"=>true)
+end
 
-function get_kappa_features(model, n, m, kappa, gamma; arch=2, indexes=3)
+function setupSolver()
+    file = matopen(joinpath(@__DIR__, "../../models/$(model_name)/model_parameters"), "r"); DICT = read(file); close(file);
+    e_vcycle_input = DICT["e_vcycle_input"]
+    kappa_input = DICT["kappa_input"]
+    gamma_input = DICT["gamma_input"]
+    kernel = Tuple(DICT["kernel"])
+    model_type = @eval $(Symbol(DICT["model_type"])) # FFSDNUnet
+    k_type = @eval $(Symbol(DICT["k_type"])) # TFFKappa
+    resnet_type = @eval $(Symbol(DICT["resnet_type"])) # TSResidualBlockI
+    k_chs = DICT["k_chs"]
+    indexes = DICT["indexes"]
+    σ = @eval $(Symbol(DICT["sigma"])) # elu
+    arch = DICT["arch"]
+
+    model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
+    model = model|>cpu
+    println("after create")
+    @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model
+    @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
+    
+    return model|>cgpu, DICT
+end
+
+function get_kappa_features(param::CnnHelmholtzSolver)
+    model = param.model
+    n = param.n
+    m = param.m
+    kappa = param.kappa
+    gamma = param.gamma
+    arch = param.model_parameters["arch"]
+    indexes = param.model_parameters["indexes"]
+
     kappa_features = NaN
     if arch != 0
         kappa_input = reshape(kappa.^2, n+1, m+1, 1, 1)
@@ -20,7 +63,20 @@ function get_kappa_features(model, n, m, kappa, gamma; arch=2, indexes=3)
     return kappa_features
 end
 
-function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, omega, gamma, restrt, max_iter; v2_iter=10, level=3, axb=false, arch=2, solver_tol=1e-8, relaxation_tol=1e-4)
+function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10, level=3, axb=false)
+
+    solver_type = param.solver_type
+    model = param.model
+    n = param.n
+    m = param.m
+    h = param.h
+    kappa = param.kappa
+    kappa_features = param.kappa_features
+    omega = param.omega
+    gamma = param.gamma
+    arch = (param.model_parameters)["arch"]
+    solver_tol = param.solver_tol
+    relaxation_tol = param.relaxation_tol
 
     _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
     blocks = size(r_vcycle,2)
@@ -90,7 +146,81 @@ function solve(solver_type, model, n, m, h, r_vcycle, kappa, kappa_features, ome
     x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=solver_tol, maxIter=max_iter,
                                                             M=M_Unet, x=vec(x3), out=1,flexible=true)
     
+    CSV.write(joinpath(@__DIR__, "../../results/$(model_name)/retrain_model_cycle_$(param.cycle)_freqIndex_$(param.freqIndex)"), DataFrame(Omega=[omega], Iterations=[iter1]), delim=';', append=true) 
     println("In CNN solve - number of iterations=$(iter1) err1=$(err1)")
     return reshape(x1,(n+1)*(m+1),blocks)|>pu
     
+end
+
+
+function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa, omega, gamma,
+                            set_size, batch_size, iterations, lr;
+                            e_vcycle_input=true, v2_iter=10, level=3, threshold=50,
+                            axb=false, jac=false, norm_input=false,
+                            gmres_restrt=1, σ=elu, blocks=8, relaxation_tol=1e-4)
+
+    _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
+
+    @info "$(Dates.format(now(), "HH:MM:SS")) - Start Re-Train for $(base_model_folder)\\$(new_model_name)"
+
+    X, Y = generate_retrain_random_data(set_size, n, m, h, kappa, omega, gamma;
+                                        e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, threshold=threshold,
+                                        axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, blocks=blocks)
+    
+    
+    dataset = UnetDatasetFromArray(X,Y)
+    @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
+
+
+    loss!(x, y) = error_loss!(model, x, y)
+    loss!(tuple) = loss!(tuple[1], tuple[2])
+    
+    A(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, Int64(prod(size(v)) / ((n+1)*(m+1)))), helmholtz_matrix; h=h))
+    function SM(r)
+        bs = Int64(prod(size(r)) / ((n+1)*(m+1)))
+        e_vcycle = a_type(zeros(c_type,n+1,m+1,1,bs))
+        e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,bs), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=bs, tol=relaxation_tol)
+        return vec(e_vcycle)
+    end
+
+    opt = RADAM(lr)
+    for iteration in 1:iterations
+        @info "$(Dates.format(now(), "HH:MM:SS")) - iteration #$(iteration)/$(iterations))"
+        println("X size = $(size(X)) --- Y size = $(size(Y))")
+
+        data_loader = DataLoader(dataset, batchsize=batch_size, shuffle=true)
+
+        # Flux.train!(loss!, Flux.params(model), data_loader, opt)
+
+        rs_vector = a_float_type[]
+        es_vector = a_float_type[]
+        for (batch_x, batch_y) in data_loader
+            num_samples = size(batch_y,4)
+
+            e_model = model(batch_x)
+            e_model = e_model[:,:,1,:] + im*e_model[:,:,2,:]
+            e_tilde,flag,err,iter,resvec = fgmres_func(A, vec(batch_x[:,:,1,:] + im*batch_x[:,:,2,:]), 3, tol=1e-4, maxIter=1,
+                                                    M=SM, x=vec(e_model), out=-1,flexible=true)
+            
+            e_tilde = reshape(e_tilde, size(batch_y,1), size(batch_y,2), 1, num_samples)
+            Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h)
+            rs = copy(batch_x)
+            rs[:,:,1:2,:] -= complex_grid_to_channels!(Ae_tilde; blocks=num_samples)
+            e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples)
+            es = batch_y + e_tilde
+
+            append!(rs_vector, [rs])
+            append!(es_vector, [es])
+        end
+        dataset.X, dataset.Y = cat(dataset.X,rs_vector..., dims=4), cat(dataset.Y,es_vector..., dims=4)
+
+    end
+
+    mkpath(joinpath(@__DIR__, "../../models/$(base_model_folder)/retrain"))
+    model = model|>cpu
+    @save joinpath(@__DIR__, "../../models/$(base_model_folder)/retrain/$(new_model_name).bson") model
+    @info "$(Dates.format(now(), "HH:MM:SS")) - Save Model $(new_model_name).bson"
+    model = model|>cgpu
+
+    return model
 end

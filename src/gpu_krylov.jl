@@ -392,10 +392,10 @@ function gpu_flexible_gmres(A::Function,b,restrt; tol,maxIter,M::Function,x,out:
 				println(@sprintf("fgmres achieved desired tolerance at inner iteration %d. Residual norm is %1.2e.",counter,resvec[counter]))
 			end
 		end
-
+		# return counter instead of iter
 		if storeInterm
-			return X[:,1:iter],flag,resvec[counter],iter,resvec[1:counter],times[1:counter]
+			return X[:,1:iter],flag,resvec[counter],counter,resvec[1:counter],times[1:counter]
 		else
-			return x,flag,resvec[counter],iter,resvec[1:counter],times[1:counter]
+			return x,flag,resvec[counter],counter,resvec[1:counter],times[1:counter]
 		end
 end #fgmres

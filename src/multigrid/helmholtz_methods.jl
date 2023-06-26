@@ -69,7 +69,7 @@ function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter =
     return x, helmholtz_matrix
 end
 
-function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_matrix_level2, sl_matrix_level2, h_matrix_level3, sl_matrix_level3; u = 1, v1_iter = 1, v2_iter = 10, use_gmres_alpha = 0, alpha= 0.5, log = 0, level = nothing)
+function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_matrix_level2, sl_matrix_level2, h_matrix_level3, sl_matrix_level3; u = 1, v1_iter = 1, v2_iter = 10, use_gmres_alpha = 0, alpha= 0.5, log = 0, level = nothing, blocks=1, tol=1e-4)
     if level == 3
         h_matrix = h_matrix_level3
         sl_matrix = sl_matrix_level3
@@ -89,17 +89,16 @@ function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_
         residual_fine = b - helmholtz_chain!(x, h_matrix; h=h)#[:,:,1,1]
 
         # Compute residual, kappa and gamma on coarse grid
-        residual_coarse = (down(reshape(residual_fine, n+1, m+1, 1, 1)))#[:,:,1,1]
-        # residual_coarse = (down(reshape(real(residual_fine), n+1, m+1, 1, 1)) + im*down(reshape(imag(residual_fine), n+1, m+1, 1, 1)))[:,:,1,1]
+        residual_coarse = (down(real(residual_fine))+ im*down(imag(residual_fine)))
 
         # Recursive operation of the method on the coarse grid
         n_coarse = size(residual_coarse,1)-1
         m_coarse = size(residual_coarse,2)-1
-        x_coarse = a_type(zeros(n_coarse+1, m_coarse+1,1,1))
+        x_coarse = a_type(zeros(n_coarse+1, m_coarse+1,1,blocks))
 
         for i = 1:u
             x_coarse, _ = v_cycle_helmholtz!(n_coarse, m_coarse, h*2, x_coarse, residual_coarse, h_matrix_level1, sl_matrix_level1, h_matrix_level2, sl_matrix_level2, h_matrix_level3, sl_matrix_level3; use_gmres_alpha = use_gmres_alpha,
-                                                                    u=u, v1_iter=v1_iter, v2_iter=v2_iter, log=log, level = (level == nothing ? nothing : (level-1)))
+                                                                    u=u, v1_iter=v1_iter, v2_iter=v2_iter, log=log, level = (level == nothing ? nothing : (level-1)), blocks=blocks)
         end
 
         # Correct
@@ -113,11 +112,11 @@ function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_
         end
     else
         # Coarsest grid
-        A_Coarsest(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, 1), sl_matrix; h=h))
-        M_Coarsest(v) = vec(jacobi_helmholtz_method!(n, m, h, x, reshape(v, n+1, m+1,1,1), sl_matrix)) #         M_Jacobi(n, h, x, sl_matrix, 1, v; use_gmres_alpha=use_gmres_alpha)
-        x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=1e-15, maxIter=1,
+        A_Coarsest(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, blocks), sl_matrix; h=h))
+        M_Coarsest(v) = vec(jacobi_helmholtz_method!(n, m, h, x, reshape(v, n+1, m+1,1,blocks), sl_matrix; max_iter=1, use_gmres_alpha=use_gmres_alpha)) #         M_Jacobi(n, h, x, sl_matrix, 1, v; use_gmres_alpha=use_gmres_alpha)
+        x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=tol, maxIter=1,
                                                     M=M_Coarsest, x=vec(x), out=-1, flexible=true)
-        x = reshape(x, n+1, m+1,1,1)
+        x = reshape(x, n+1, m+1,1,blocks)
     end
 
     # Relax on Ax = b v1_iter times with initial guess x

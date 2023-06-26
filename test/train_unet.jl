@@ -31,7 +31,7 @@ function test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_si
     gamma .+= attenuation
 
     # test_name = "test_16_FFSDNUnet_TFFKappa_TSResidualBlockI n=352 m=240 Neummann=true ABLpad=[20;20] gamma=attenuation norm_input=false mirror-padding same_kappa=false kappa=slowness squared=normalized linear (FWI format) h=with domain"
-    test_name = "dataset_560x304"
+    test_name = "dataset_560x304_test_on_gpu"
 
     mkpath("models/$(test_name)")
     mkpath("models/$(test_name)/train_log")                                                                                                                                         
@@ -62,7 +62,7 @@ function test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_si
                                                         gamma_input=gamma_input, kernel=kernel, smaller_lr=smaller_lr, axb=axb, jac=false, norm_input=norm_input, model_type=model_type, k_type=k_type, k_chs=k_chs, indexes=indexes,
                                                         data_train_path=data_path, full_loss=full_loss, residual_loss=residual_loss, gmres_restrt=gmres_restrt,σ=σ, same_kappa=false, linear_kappa=true)
 
-    iter = range(1, length=Int64(iterations/4))
+    iter = range(1, length=Int64(iterations))
     p = plot(iter, train_loss, label="Train loss")
     plot!(iter, test_loss, label="Test loss")
     yaxis!("Loss", :log10)
@@ -80,11 +80,18 @@ iterations = 120 # 120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
 blocks = 10
-n = 560 # 352 # 224 # 288 ## 560
+n = 592 # 352 # 224 # 288 ## 560
 m = 304 # 240 # 112 # 176 ## 304
 
 domain = [0, 13.5, 0, 4.2]
 h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
+
+# model = create_model!(false, true, true; kernel=(3,3), type=FFSDNUnet, k_type=TFFKappa, resnet_type=TSResidualBlockI, k_chs=10, indexes=3, σ=elu, arch=2)|>cgpu
+# model = model |> cpu
+# println("after create")
+# @load joinpath(@__DIR__, "../models/dataset_560x304/model.bson") model
+# @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
+# model = model |> cgpu
 
 test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_size, iterations;
                     data_augmentetion = false,
@@ -101,8 +108,8 @@ test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_size, itera
                     level = 3,
                     axb = false,
                     norm_input = false,
-                    model_type = Solver,#FFSDNUnet,
-                    k_type = Encoder, #TFFKappa,
+                    model_type = FFSDNUnet,
+                    k_type = TFFKappa,
                     resnet_type = TSResidualBlockI,
                     k_chs = 10,
                     arch = 2,

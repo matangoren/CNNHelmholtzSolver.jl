@@ -8,6 +8,7 @@ using KrylovMethods
 using Distributions: Normal
 using BSON
 using BSON: @load
+using BSON: @save
 using Plots
 using Dates
 using CSV, DataFrames

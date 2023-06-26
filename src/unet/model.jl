@@ -147,10 +147,10 @@ function Solver(channels::Int = 2, labels::Int = channels; kernel = (3, 3), σ=e
         x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
     ) |> cgpu
 
-    bottleneck_8 = bottleNeckBlock(8,16)
-    bottleneck_16 = bottleNeckBlock(16,32)
-    bottleneck_32 = bottleNeckBlock(32,64)
-    bottleneck_64 = bottleNeckBlock(64,128)
+    bottleneck_8 = bottleNeckBlock(8,16) |> cgpu
+    bottleneck_16 = bottleNeckBlock(16,32) |> cgpu
+    bottleneck_32 = bottleNeckBlock(32,64) |> cgpu
+    bottleneck_64 = bottleNeckBlock(64,128) |> cgpu
 
     conv_64 = Conv((1,1), 64=>64, stride=(1,1), pad = 0, groups=64; init=_random_normal) |> cgpu
 
