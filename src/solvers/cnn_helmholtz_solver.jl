@@ -1,10 +1,10 @@
 export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setMediumParameters,setSolverType
 
 model_name = "without_alpha"
-println(joinpath(@__DIR__, "../../results/$(model_name)"))
-println(joinpath(pwd(), "../../results/$(model_name)"))
+println(joinpath(@__DIR__, "results/$(model_name)"))
+println(joinpath(pwd(), "results/$(model_name)"))
 
-mkpath(joinpath(pwd(), "../../results/$(model_name)"))
+mkpath(joinpath(pwd(), "results/$(model_name)"))
 
 mutable struct CnnHelmholtzSolver<: AbstractSolver
     solver_type::Dict
