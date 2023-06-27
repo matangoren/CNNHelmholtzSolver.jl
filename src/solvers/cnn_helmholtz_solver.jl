@@ -118,7 +118,7 @@ function retrain(cycle::Int, index::Int, param::CnnHelmholtzSolver; iterations=4
     # new_model_name = "retrain_model_cycle=$(cycle)_freqIndex=$(index)"
     
     # param.model, X = retrain_model(param.model, model_name, new_model_name, param.n, param.m, param.h,
-                                param.kappa, param.omega, param.gamma, initial_set_size, batch_size, iterations, lr; relaxation_tol=param.relaxation_tol)
+                                # param.kappa, param.omega, param.gamma, initial_set_size, batch_size, iterations, lr; relaxation_tol=param.relaxation_tol)
 
     return param, X
 end
