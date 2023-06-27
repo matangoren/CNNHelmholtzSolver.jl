@@ -1,6 +1,7 @@
 export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setMediumParameters,setSolverType
 
 model_name = "without_alpha"
+println(joinpath(@__DIR__, "../../results/$(model_name)"))
 mkpath(joinpath(@__DIR__, "../../results/$(model_name)"))
 
 mutable struct CnnHelmholtzSolver<: AbstractSolver

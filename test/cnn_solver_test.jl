@@ -84,13 +84,13 @@ result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver,0)|>cpu
 plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 
 
-new_medium = readdlm("FWI_(384, 256)_FC1_GN10.dat", '\t', Float64);
-new_medium = new_medium[1:n+1,1:m+1]
-println(size(new_medium))
-Helmholtz_param = HelmholtzParam(M,Float64.(gamma),Float64.(new_medium),Float64(omega_fwi),true,useSommerfeldBC)
+# new_medium = readdlm("FWI_(384, 256)_FC1_GN10.dat", '\t', Float64);
+# new_medium = new_medium[1:n+1,1:m+1]
+# println(size(new_medium))
+# Helmholtz_param = HelmholtzParam(M,Float64.(gamma),Float64.(new_medium),Float64(omega_fwi),true,useSommerfeldBC)
 
-solver = setMediumParameters(solver, Helmholtz_param)
-solver, X = retrain(1,1,solver)
+# solver = setMediumParameters(solver, Helmholtz_param)
+# # solver, X = retrain(1,1,solver)
 
-result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver,0)|>cpu
-plot_results("test_16_cnn_solver_point_source_result_$(solver_type)_after_retrain", result, n ,m)
+# result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver,0)|>cpu
+# plot_results("test_16_cnn_solver_point_source_result_$(solver_type)_after_retrain", result, n ,m)
