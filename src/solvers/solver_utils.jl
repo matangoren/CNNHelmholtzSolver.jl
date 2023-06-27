@@ -146,8 +146,7 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
     x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=solver_tol, maxIter=max_iter,
                                                             M=M_Unet, x=vec(x3), out=1,flexible=true)
     
-    CSV.write(joinpath(@__DIR__, "../../results/$(model_name)/retrain_model_cycle_$(param.cycle)_freqIndex_$(param.freqIndex)"), DataFrame(Omega=[omega], Iterations=[iter1], Error=[err1]), delim=';', append=true) 
-    println(joinpath(@__DIR__, "../../results/$(model_name)/retrain_model_cycle_$(param.cycle)_freqIndex_$(param.freqIndex)"))
+    CSV.write(joinpath(pwd(), "../../results/$(model_name)/retrain_model_cycle_$(param.cycle)_freqIndex_$(param.freqIndex)"), DataFrame(Omega=[omega], Iterations=[iter1], Error=[err1]), delim=';', append=true) 
     println("In CNN solve - number of iterations=$(iter1) err1=$(err1)")
     return reshape(x1,(n+1)*(m+1),blocks)|>pu
     
