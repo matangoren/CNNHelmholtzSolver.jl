@@ -51,10 +51,8 @@ function Base.getindex(d::UnetDatasetFromArray, ids::Array)
     for (i, id) in enumerate(ids[1:end])
         x, y = d[id]
         x_p, y_p = d[paired_ids[i]]
-        # append!(xs, [alphas[i]*x + (1-alphas[i])*x_p])
-        # append!(ys, [alphas[i]*y + (1-alphas[i])*y_p])
-        append!(xs, [x])
-        append!(ys, [y])
+        append!(xs, [alphas[i]*x + (1-alphas[i])*x_p])
+        append!(ys, [alphas[i]*y + (1-alphas[i])*y_p])
     end
     cat(xs...,dims=4), cat(ys...,dims=4)
 end

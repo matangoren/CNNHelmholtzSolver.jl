@@ -146,7 +146,7 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
     x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=solver_tol, maxIter=max_iter,
                                                             M=M_Unet, x=vec(x3), out=1,flexible=true)
     
-    CSV.write(joinpath(@__DIR__, "../../results/$(model_name)/retrain_model_cycle_$(param.cycle)_freqIndex_$(param.freqIndex)"), DataFrame(Omega=[omega], Iterations=[iter1]), delim=';', append=true) 
+    CSV.write(joinpath(@__DIR__, "../../results/$(model_name)/retrain_model_cycle_$(param.cycle)_freqIndex_$(param.freqIndex)"), DataFrame(Omega=[omega], Iterations=[iter1], Error=[err1]), delim=';', append=true) 
     println("In CNN solve - number of iterations=$(iter1) err1=$(err1)")
     return reshape(x1,(n+1)*(m+1),blocks)|>pu
     
@@ -160,7 +160,7 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
                             gmres_restrt=1, σ=elu, blocks=8, relaxation_tol=1e-4)
 
     _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
-
+    coefficient = r_type(minimum(h)^2)
     @info "$(Dates.format(now(), "HH:MM:SS")) - Start Re-Train for $(base_model_folder)\\$(new_model_name)"
 
     X, Y = generate_retrain_random_data(set_size, n, m, h, kappa, omega, gamma;
@@ -186,11 +186,11 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
     opt = RADAM(lr)
     for iteration in 1:iterations
         @info "$(Dates.format(now(), "HH:MM:SS")) - iteration #$(iteration)/$(iterations))"
-        println("X size = $(size(X)) --- Y size = $(size(Y))")
+        println("X size = $(size(dataset.X)) --- Y size = $(size(dataset.Y))")
 
         data_loader = DataLoader(dataset, batchsize=batch_size, shuffle=true)
 
-        # Flux.train!(loss!, Flux.params(model), data_loader, opt)
+        Flux.train!(loss!, Flux.params(model), data_loader, opt)
 
         rs_vector = a_float_type[]
         es_vector = a_float_type[]
@@ -198,16 +198,16 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             num_samples = size(batch_y,4)
 
             e_model = model(batch_x)
-            e_model = e_model[:,:,1,:] + im*e_model[:,:,2,:]
+            e_model = (e_model[:,:,1,:] + im*e_model[:,:,2,:]) .* coefficient
             e_tilde,flag,err,iter,resvec = fgmres_func(A, vec(batch_x[:,:,1,:] + im*batch_x[:,:,2,:]), 3, tol=1e-4, maxIter=1,
                                                     M=SM, x=vec(e_model), out=-1,flexible=true)
             
-            e_tilde = reshape(e_tilde, size(batch_y,1), size(batch_y,2), 1, num_samples)
+            e_tilde = reshape(e_tilde, n+1, m+1, 1, num_samples)
             Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h)
             rs = copy(batch_x)
             rs[:,:,1:2,:] -= complex_grid_to_channels!(Ae_tilde; blocks=num_samples)
             e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples)
-            es = batch_y + e_tilde
+            es = batch_y .+ e_tilde
 
             append!(rs_vector, [rs])
             append!(es_vector, [es])
@@ -222,5 +222,5 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
     @info "$(Dates.format(now(), "HH:MM:SS")) - Save Model $(new_model_name).bson"
     model = model|>cgpu
 
-    return model
+    return model, dataset.X
 end

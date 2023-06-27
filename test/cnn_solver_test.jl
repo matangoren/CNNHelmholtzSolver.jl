@@ -6,9 +6,8 @@ include("../src/gpu_krylov.jl")
 include("../src/multigrid/helmholtz_methods.jl")
 include("../src/data.jl")
 
-include("../src/solvers/solver_utils.jl")
 include("../src/solvers/cnn_helmholtz_solver.jl")
-
+ENV["JULIA_CUDA_MEMORY_POOL"] = "none"
 
 function get_rhs(n, m, h; blocks=2)
     rhs = zeros(ComplexF64,n+1,m+1,1,1)
@@ -84,6 +83,14 @@ println(solver_type)
 result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver,0)|>cpu
 plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 
-solver = retrain(1,1,solver)
+
+new_medium = readdlm("FWI_(384, 256)_FC1_GN10.dat", '\t', Float64);
+new_medium = new_medium[1:n+1,1:m+1]
+println(size(new_medium))
+Helmholtz_param = HelmholtzParam(M,Float64.(gamma),Float64.(new_medium),Float64(omega_fwi),true,useSommerfeldBC)
+
+solver = setMediumParameters(solver, Helmholtz_param)
+solver, X = retrain(1,1,solver)
+
 result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver,0)|>cpu
 plot_results("test_16_cnn_solver_point_source_result_$(solver_type)_after_retrain", result, n ,m)
