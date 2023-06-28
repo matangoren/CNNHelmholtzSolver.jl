@@ -49,6 +49,8 @@ function get_kappa_features(param::CnnHelmholtzSolver)
     m = param.m
     kappa = param.kappa
     gamma = param.gamma
+    println("In get_kappa_features")
+    println(param.model_parameters)
     arch = (param.model_parameters)["arch"]
     indexes = (param.model_parameters)["indexes"]
 
