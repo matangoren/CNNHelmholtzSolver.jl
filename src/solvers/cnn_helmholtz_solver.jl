@@ -74,9 +74,6 @@ end
 import jInv.LinearSolvers.solveLinearSystem!;
 function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doTranspose=0)
     println("in solveLinearSystem")
-    if param.model == []
-        param = setupSolver!(param)
-    end
 
     if doTranspose == 1
         B = real(B) - im*imag(B) # negate the imaginary part of B (rhs)
@@ -93,8 +90,9 @@ end
 
 import jInv.LinearSolvers.clear!;
 function clear!(param::CnnHelmholtzSolver)
-    param.model = []
-    param.model_parameters = Dict()
+    println("--- In CNNHelmholtzSolver clear! ---")
+    # param.model = []
+    # param.model_parameters = Dict()
 end
 
 import jInv.LinearSolvers.copySolver;
