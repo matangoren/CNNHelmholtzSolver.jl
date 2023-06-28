@@ -33,14 +33,14 @@ function getCnnHelmholtzSolver(solver_name; n=128, m=128,h=[], kappa=[], omega=[
     if model == []
         model, model_parameters = setupSolver()
     end
-    return CnnHelmholtzSolver(get_solver_type(solver_name), n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,0,0)
+    return CnnHelmholtzSolver(get_solver_type(solver_name), n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,-1,-1)
 end
 
 function getCnnHelmholtzSolver(solver_type::Dict; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100, solver_tol=1e-8, relaxation_tol=1e-4)
     if model == []
         model, model_parameters = setupSolver()
     end
-    return CnnHelmholtzSolver(solver_type, n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,0,0)
+    return CnnHelmholtzSolver(solver_type, n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,-1,-1)
 end
 
 # need only B - the rhs of the linear equation. The rest of the computations is done by the CNN model.
