@@ -1,8 +1,6 @@
 export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setMediumParameters,setSolverType,retrain
 
 model_name = "without_alpha"
-println(joinpath(@__DIR__, "results/$(model_name)"))
-println(joinpath(pwd(), "results/$(model_name)"))
 
 mkpath(joinpath(pwd(), "results/$(model_name)"))
 file_path = joinpath(pwd(), "results/$(model_name)_solver_info.csv")

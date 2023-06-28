@@ -49,8 +49,8 @@ function get_kappa_features(param::CnnHelmholtzSolver)
     m = param.m
     kappa = param.kappa
     gamma = param.gamma
-    arch = param.model_parameters["arch"]
-    indexes = param.model_parameters["indexes"]
+    arch = (param.model_parameters)["arch"]
+    indexes = (param.model_parameters)["indexes"]
 
     kappa_features = NaN
     if arch != 0
