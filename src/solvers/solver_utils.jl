@@ -49,8 +49,6 @@ function get_kappa_features(param::CnnHelmholtzSolver)
     m = param.m
     kappa = param.kappa
     gamma = param.gamma
-    println("In get_kappa_features")
-    println(param.model_parameters)
     arch = (param.model_parameters)["arch"]
     indexes = (param.model_parameters)["indexes"]
 
@@ -89,11 +87,12 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
     function M_Unet(r)
         r = reshape(r, n+1, m+1, 1, blocks)
         rj = reshape(r, n+1, m+1, 1, blocks)
-        e = zeros(c_type, n+1, m+1, 1, blocks)|>cgpu
-        ej = zeros(c_type, n+1, m+1, 1, blocks)|>cgpu
+        e = a_type(zeros(n+1, m+1, 1, blocks))
+        # ej = zeros(c_type, n+1, m+1, 1, blocks)|>cgpu
 
         if solver_type["before_jacobi"] == true
-            ej = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
+            e = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
+            # ej = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
             rj = r - reshape(A(ej), n+1, m+1, 1, blocks) # I think the reshape is redundant here
         end
         
@@ -110,30 +109,28 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
                     input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma, n+1, m+1, 1, 1), dims=3)
                     e_unet = model(input)
                 end
-                e[:,:,1,i] = (e_unet[:,:,1,1] + im*e_unet[:,:,2,1]) .* coefficient
-                CUDA.unsafe_free!(input)
-                CUDA.unsafe_free!(e_unet)
+                e[:,:,1,i] .+= (e_unet[:,:,1,1] + im*e_unet[:,:,2,1]) .* coefficient
+                # e[:,:,1,i] = (e_unet[:,:,1,1] + im*e_unet[:,:,2,1]) .* coefficient
             end
         end
-        e += ej
+        # e += ej
         
         if solver_type["after_jacobi"] == true
             e = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
         elseif solver_type["after_vcycle"] == true
             e, = v_cycle_helmholtz!(n, m, h, e, r, kappa, omega, gamma; v2_iter = v2_iter, level = level, blocks=blocks)
         end
-        CUDA.unsafe_free!(ej)
 
         return vec(e)
     end
 
     function SM(r)
-        e_vcycle = zeros(c_type,n+1,m+1,1,blocks)|>cgpu
+        e_vcycle = a_type(zeros(c_type,n+1,m+1,1,blocks))
         e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,blocks), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=blocks, tol=relaxation_tol)
         return vec(e_vcycle)
     end
 
-    x_init = zeros(c_type,(n+1)*(m+1),blocks)|>cgpu
+    x_init = a_type(zeros(c_type,(n+1)*(m+1),blocks))
     ##### just for run-time compilation #####
     # @info "$(Dates.format(now(), "HH:MM:SS")) - before warm-up" 
     # x3,flag3,err3,iter3,resvec3 = fgmres_func(A, vec(r_vcycle), 3, tol=1e-5, maxIter=1,

@@ -76,7 +76,6 @@ Helmholtz_param = HelmholtzParam(M,Float64.(gamma),Float64.(medium),Float64(omeg
 solver_type = "VU"
 
 solver = getCnnHelmholtzSolver(solver_type; solver_tol=1e-4)
-solver = copySolver(solver)
 solver = setMediumParameters(solver, Helmholtz_param)
 
 

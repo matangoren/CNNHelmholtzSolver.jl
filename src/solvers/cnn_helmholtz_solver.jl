@@ -78,9 +78,9 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
     if doTranspose == 1
         B = real(B) - im*imag(B) # negate the imaginary part of B (rhs)
     end
-
-    res = Base.invokelatest(solve, param, B|>cgpu, 10, 30)
-    
+    B = B|>cgpu
+    res = Base.invokelatest(solve, param, B, 10, 30)
+    B = B|>pu
     if doTranspose == 1
         # negate the imaginary part of res
         res = real(res) - im*imag(res)
