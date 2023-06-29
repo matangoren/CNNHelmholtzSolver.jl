@@ -110,8 +110,9 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
                     input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma, n+1, m+1, 1, 1), dims=3)
                     e_unet = model(input)
                 end
-
                 e[:,:,1,i] = (e_unet[:,:,1,1] + im*e_unet[:,:,2,1]) .* coefficient
+                CUDA.unsafe_free!(input)
+                CUDA.unsafe_free!(e_unet)
             end
         end
         e += ej
@@ -121,6 +122,8 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
         elseif solver_type["after_vcycle"] == true
             e, = v_cycle_helmholtz!(n, m, h, e, r, kappa, omega, gamma; v2_iter = v2_iter, level = level, blocks=blocks)
         end
+        CUDA.unsafe_free!(ej)
+
         return vec(e)
     end
 
