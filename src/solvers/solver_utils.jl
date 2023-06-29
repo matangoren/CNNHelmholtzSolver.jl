@@ -94,7 +94,7 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
 
         if solver_type["before_jacobi"] == true
             ej = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
-            rj = r - reshape(A(ej), n+1, m+1, 1, blocks)
+            rj = r - reshape(A(ej), n+1, m+1, 1, blocks) # I think the reshape is redundant here
         end
         
         if solver_type["unet"] == true

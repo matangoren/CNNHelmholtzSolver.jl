@@ -1,5 +1,5 @@
 module CNNHelmholtzSolver
-ENV["JULIA_CUDA_MEMORY_POOL"] = "none"
+# ENV["JULIA_CUDA_MEMORY_POOL"] = "none"
 include("../test/test_intro.jl")
 include("solvers/cnn_helmholtz_solver.jl")
 
