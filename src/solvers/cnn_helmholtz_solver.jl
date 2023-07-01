@@ -97,7 +97,7 @@ end
 
 import jInv.LinearSolvers.copySolver;
 function copySolver(param::CnnHelmholtzSolver)
-    return getCnnHelmholtzSolver(param.solver_type; model=param.model, model_parameters=param.model_parameters, solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol) 
+    return getCnnHelmholtzSolver(param.solver_type; n=param.n, m=param.m, h=param.h, kappa=param.kappa, omega=param.omega, gamma=param.gamma ,model=param.model, model_parameters=param.model_parameters, kappa_features=param.kappa_features, solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol) 
 end
 
 function setModel(model, param::CnnHelmholtzSolver)
