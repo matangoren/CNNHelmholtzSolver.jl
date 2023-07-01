@@ -202,7 +202,7 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
 
             e_model = model(batch_x)
             e_model = (e_model[:,:,1,:] + im*e_model[:,:,2,:]) .* coefficient
-            e_tilde,flag,err,iter,resvec = fgmres_func(A, vec(batch_x[:,:,1,:] + im*batch_x[:,:,2,:]), 3, tol=1e-4, maxIter=1,
+            e_tilde,flag,err,counter,resvec = fgmres_func(A, vec(batch_x[:,:,1,:] + im*batch_x[:,:,2,:]), 3, tol=1e-4, maxIter=1,
                                                     M=SM, x=vec(e_model), out=-1,flexible=true)
             
             e_tilde = reshape(e_tilde, n+1, m+1, 1, num_samples)
@@ -219,11 +219,11 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
 
     end
 
-    mkpath(joinpath(@__DIR__, "../../models/$(base_model_folder)/retrain"))
-    model = model|>cpu
-    @save joinpath(@__DIR__, "../../models/$(base_model_folder)/retrain/$(new_model_name).bson") model
-    @info "$(Dates.format(now(), "HH:MM:SS")) - Save Model $(new_model_name).bson"
-    model = model|>cgpu
+    # mkpath(joinpath(@__DIR__, "../../models/$(base_model_folder)/retrain"))
+    # model = model|>cpu
+    # @save joinpath(@__DIR__, "../../models/$(base_model_folder)/retrain/$(new_model_name).bson") model
+    # @info "$(Dates.format(now(), "HH:MM:SS")) - Save Model $(new_model_name).bson"
+    # model = model|>cgpu
 
-    return model, dataset.X
+    return model
 end
