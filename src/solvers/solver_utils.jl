@@ -181,7 +181,7 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
     A(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, Int64(prod(size(v)) / ((n+1)*(m+1)))), helmholtz_matrix; h=h))
     function SM(r)
         bs = Int64(prod(size(r)) / ((n+1)*(m+1)))
-        e_vcycle = a_type(zeros(c_type,n+1,m+1,1,bs))
+        e_vcycle = a_type(zeros(n+1,m+1,1,bs))
         e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,bs), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=bs, tol=relaxation_tol)
         return vec(e_vcycle)
     end
@@ -201,12 +201,13 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             num_samples = size(batch_y,4)
 
             e_model = model(batch_x)
-            e_model = (e_model[:,:,1,:] + im*e_model[:,:,2,:]) .* coefficient
-            e_tilde,flag,err,counter,resvec = fgmres_func(A, vec(batch_x[:,:,1,:] + im*batch_x[:,:,2,:]), 3, tol=1e-4, maxIter=1,
+            e_model = (e_model[:,:,1,:] + im*e_model[:,:,2,:]) # .* coefficient
+
+            e_tilde,flag,err,counter,resvec = fgmres_func(A, vec((batch_x[:,:,1,:] + im*batch_x[:,:,2,:]) ./ coefficient), 3, tol=1e-4, maxIter=1,
                                                     M=SM, x=vec(e_model), out=-1,flexible=true)
             
             e_tilde = reshape(e_tilde, n+1, m+1, 1, num_samples)
-            Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h)
+            Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h) .* coefficient 
             rs = copy(batch_x)
             rs[:,:,1:2,:] -= complex_grid_to_channels!(Ae_tilde; blocks=num_samples)
             e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples)

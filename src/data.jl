@@ -70,7 +70,7 @@ function generate_r_vcycle!(n, m, h, kappa, omega, gamma::a_float_type, x_true::
     x_vcycle = reshape(x_vcycle,n+1,m+1,1,blocks)
     e_true = x_true .- x_vcycle
     r_vcycle = b_true .- helmholtz_chain!(x_vcycle, helmholtz_matrix; h=h)
-
+    # print norm of r and e
     return r_vcycle, e_true
 end
 
@@ -91,7 +91,7 @@ function generate_r_e_batch(n, m, h, kappa, omega, gamma;
     end
 
     r_vcycle = r_type(minimum(h)^2) .* r_vcycle
-    # check with normalization - here and in augmentation
+    # check with normalization
     if norm_input == true
         norms_r = mapslices(norm, r_vcycle, dims=[1,2,3])
         r_vcycle = r_vcycle ./ norms_r
