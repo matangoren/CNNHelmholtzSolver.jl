@@ -103,7 +103,7 @@ function generate_r_e_batch(n, m, h, kappa, omega, gamma;
 
     # Generate e-vcycle
     if e_vcycle_input == true
-        e_vcycle, e_vcycle_channels = generate_vcycle!(n, m, h, kappa, omega, gamma, r_vcycle; v2_iter=v2_iter, level=level)
+        e_vcycle, e_vcycle_channels = generate_vcycle!(n, m, h, kappa, omega, gamma, r_vcycle; v2_iter=v2_iter, level=level, blocks=blocks)
         input = cat(e_vcycle_channels, r_vcycle_channels, dims=3)
     else
         input = r_vcycle_channels
@@ -158,8 +158,6 @@ function generate_retrain_random_data(data_set_m, n, m, h, kappa, omega, gamma;
     end
     
     return cat(data_r_vector..., dims=4), cat(data_e_vector..., dims=4)
-    # perfrom linear-combination data augmentation
-    # return augment_data(data_r, data_e, num_augmented)
 end
 
 function generate_random_data!(test_name, data_set_m, n, m, h, kappa, omega, gamma; e_vcycle_input=true, v2_iter=10, level=3, data_augmentetion=false,
@@ -172,7 +170,6 @@ function generate_random_data!(test_name, data_set_m, n, m, h, kappa, omega, gam
     if isdir(data_dirname)
         println("using previous data :)")
         return data_dirname
-        # return "$(data_dirname)/"
     end
     mkpath(data_dirname)
 

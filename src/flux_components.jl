@@ -50,7 +50,6 @@ function down(grid::Union{a_type, a_float_type})
     return down_conv(grid)
 end
 
-# function helmholtz_chain!(grid::Union{Array{ComplexF64}, Array{ComplexF32}, CuArray{ComplexF32}, CuArray{ComplexF64}}, matrix::Union{Array{ComplexF64}, Array{ComplexF32}, CuArray{ComplexF32}, CuArray{ComplexF64}}; h=[0.0225 ; 0.014])
 function helmholtz_chain!(grid::a_type, matrix::a_type; h=[0.0225 ; 0.014])
     # zero-padding
     # filter = get_laplacian_filter(h)

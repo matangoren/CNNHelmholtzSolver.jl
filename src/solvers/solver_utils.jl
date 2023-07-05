@@ -110,10 +110,8 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
                     e_unet = model(input)
                 end
                 e[:,:,1,i] .+= (e_unet[:,:,1,1] + im*e_unet[:,:,2,1]) .* coefficient
-                # e[:,:,1,i] = (e_unet[:,:,1,1] + im*e_unet[:,:,2,1]) .* coefficient
             end
         end
-        # e += ej
         
         if solver_type["after_jacobi"] == true
             e = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
@@ -195,28 +193,28 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
 
         Flux.train!(loss!, Flux.params(model), data_loader, opt)
 
-        rs_vector = a_float_type[]
-        es_vector = a_float_type[]
-        for (batch_x, batch_y) in data_loader
-            num_samples = size(batch_y,4)
+        # rs_vector = a_float_type[]
+        # es_vector = a_float_type[]
+        # for (batch_r, batch_e) in data_loader
+        #     num_samples = size(batch_e,4)
 
-            e_model = model(batch_x)
-            e_model = (e_model[:,:,1,:] + im*e_model[:,:,2,:]) # .* coefficient
+        #     e_model = model(batch_r)
+        #     e_model = (e_model[:,:,1,:] + im*e_model[:,:,2,:]) # .* coefficient
 
-            e_tilde,flag,err,counter,resvec = fgmres_func(A, vec((batch_x[:,:,1,:] + im*batch_x[:,:,2,:]) ./ coefficient), 3, tol=1e-4, maxIter=1,
-                                                    M=SM, x=vec(e_model), out=-1,flexible=true)
+        #     e_tilde,flag,err,counter,resvec = fgmres_func(A, vec((batch_r[:,:,1,:] + im*batch_r[:,:,2,:]) ./ coefficient), 3, tol=1e-4, maxIter=1,
+        #                                             M=SM, x=vec(e_model), out=-1,flexible=true)
             
-            e_tilde = reshape(e_tilde, n+1, m+1, 1, num_samples)
-            Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h) .* coefficient 
-            rs = copy(batch_x)
-            rs[:,:,1:2,:] -= complex_grid_to_channels!(Ae_tilde; blocks=num_samples)
-            e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples)
-            es = batch_y .+ e_tilde
+        #     e_tilde = reshape(e_tilde, n+1, m+1, 1, num_samples)
+        #     Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h) .* coefficient 
+        #     rs = copy(batch_r)
+        #     rs[:,:,1:2,:] -= complex_grid_to_channels!(Ae_tilde; blocks=num_samples)
+        #     e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples)
+        #     es = batch_e .+ e_tilde
 
-            append!(rs_vector, [rs])
-            append!(es_vector, [es])
-        end
-        dataset.X, dataset.Y = cat(dataset.X,rs_vector..., dims=4), cat(dataset.Y,es_vector..., dims=4)
+        #     append!(rs_vector, [rs])
+        #     append!(es_vector, [es])
+        # end
+        # dataset.X, dataset.Y = cat(dataset.X,rs_vector..., dims=4), cat(dataset.Y,es_vector..., dims=4)
 
     end
 
