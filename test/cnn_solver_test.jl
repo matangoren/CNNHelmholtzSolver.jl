@@ -33,10 +33,13 @@ end
 
 
 # setup
-n = 352 #560 #352
-m = 240 #304 #240
+# maybe try 272x192 with f=2.7
+n = 240 #240#352# 272 #352 #560 #352
+m = 160 #160#240# 192 #240 #304 #240
+
 domain = [0, 13.5, 0, 4.2]
 h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
+
 # n += 32
 # m += 16
 
@@ -46,7 +49,7 @@ medium = kappa_i.^2
 c = maximum(kappa_i)
 
 omega_exact = r_type((0.1*2*pi) / (c*maximum(h)))
-f_fwi = 3.9 # 6.2 # 3.9
+f_fwi = 2.7#3.9# 2.7 #3.9 # 6.2 # 3.9
 omega_fwi = r_type(2*pi*f_fwi)
 
 println("c=$(c) - h=$(h)")
@@ -56,6 +59,7 @@ println("omega = $(omega_fwi) f_fwi = $(f_fwi)")
 
 kappa = (kappa_i .* (omega_fwi/(omega_exact*c)))
 omega = omega_exact * c
+println("final omega = $(omega)")
 
 ABLpad = 20
 ABLamp = omega
@@ -81,6 +85,7 @@ solver = setMediumParameters(solver, Helmholtz_param)
 
 println(solver_type)
 result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver,0)|>cpu
+exit()
 plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 
 
@@ -90,7 +95,7 @@ plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n 
 # Helmholtz_param = HelmholtzParam(M,Float64.(gamma),Float64.(new_medium),Float64(omega_fwi),true,useSommerfeldBC)
 
 # solver = setMediumParameters(solver, Helmholtz_param)
-solver = retrain(1,1,solver;iterations=1, lr=1e-6)
+solver = retrain(1,1,solver;iterations=10, initial_set_size=128, lr=1e-6)
 
 result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver,0)|>cpu
 plot_results("test_16_cnn_solver_point_source_result_$(solver_type)_after_retrain", result, n ,m)
