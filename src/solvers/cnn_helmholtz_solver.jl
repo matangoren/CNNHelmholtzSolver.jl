@@ -62,6 +62,7 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
     println("========== In setMediumParameters ==========")
     println("omega --- $(param.omega)")
     println("h --- $(param.h)")
+    println("FWI f --- $((Helmholtz_param.omega / 2pi))")
     println("(n,m) --- ($(param.n),$(param.m))")
     println("========== In setMediumParameters ==========")
 
