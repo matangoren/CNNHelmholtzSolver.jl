@@ -275,14 +275,17 @@ function (u::FFSDNUnet)(x::AbstractArray, features)
     x1 = u.conv_blocks[2](u.conv_down_blocks[2](cat(op, features[1], dims=3)))
     # (n/4) X (n/4) X 32 X bs -> (n/8) X (n/8) X 64 X bs
     x2 = u.conv_blocks[3](u.conv_down_blocks[3](cat(x1, features[2], dims=3)))
+    # without grid downsample
     # (n/8) X (n/8) X 64 X bs -> (n/16) X (n/16) X 128 X bs
     x3 = u.conv_blocks[4](u.conv_down_blocks[4](cat(x2, features[3], dims=3)))
 
+    # 2 instead of 3 resnet steps
     # (n/16) X (n/16) X 128 X bs
     up_x3 = u.conv_blocks[5](x3)
     up_x3 = u.conv_blocks[6](up_x3)
     up_x3 = u.conv_blocks[7](up_x3)
 
+    # remove the first layer
     # (n/16) X (n/16) X 128 X bs -> (n/8) X (n/8) X 128 X bs
     up_x1 = u.up_blocks[1](cat(up_x3, features[4], dims=3), x2)
     # (n/8) X (n/8) X 128 X bs -> (n/4) X (n/4) X 64 X bs

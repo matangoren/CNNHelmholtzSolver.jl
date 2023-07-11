@@ -176,22 +176,24 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
     loss!(x, y) = error_loss!(model, x, y)
     loss!(tuple) = loss!(tuple[1], tuple[2])
     
-    A(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, Int64(prod(size(v)) / ((n+1)*(m+1)))), helmholtz_matrix; h=h))
-    function SM(r)
-        bs = Int64(prod(size(r)) / ((n+1)*(m+1)))
-        e_vcycle = a_type(zeros(n+1,m+1,1,bs))
-        e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,bs), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=bs, tol=relaxation_tol)
-        return vec(e_vcycle)
-    end
+    # A(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, Int64(prod(size(v)) / ((n+1)*(m+1)))), helmholtz_matrix; h=h))
+    # function SM(r)
+    #     bs = Int64(prod(size(r)) / ((n+1)*(m+1)))
+    #     e_vcycle = a_type(zeros(n+1,m+1,1,bs))
+    #     e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,bs), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=bs, tol=relaxation_tol)
+    #     return vec(e_vcycle)
+    # end
 
     opt = RADAM(lr)
+    data_loader = DataLoader(dataset, batchsize=batch_size, shuffle=true)
+
     for iteration in 1:iterations
         @info "$(Dates.format(now(), "HH:MM:SS")) - iteration #$(iteration)/$(iterations))"
-        println("X size = $(size(dataset.X)) --- Y size = $(size(dataset.Y))")
-
-        data_loader = DataLoader(dataset, batchsize=batch_size, shuffle=true)
+        # println("X size = $(size(dataset.X)) --- Y size = $(size(dataset.Y))")
 
         Flux.train!(loss!, Flux.params(model), data_loader, opt)
+        loss = dataset_loss!(data_loader, loss!) / set_size
+        println("loss: $(loss)")
 
         # rs_vector = a_float_type[]
         # es_vector = a_float_type[]
