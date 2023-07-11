@@ -58,7 +58,7 @@ function v_cycle_helmholtz!(n, m, h, x, b, kappa, omega, gamma; u = 1, v1_iter =
         # Coarsest grid
         A_Coarsest(v) =  vec(helmholtz_chain!(reshape(v,n+1,m+1,1,blocks), shifted_laplacian_matrix; h=h))
         M_Coarsest(v) = vec(jacobi_helmholtz_method!(n, m, h, x, reshape(v,n+1,m+1,1,blocks), shifted_laplacian_matrix; max_iter=1, use_gmres_alpha=use_gmres_alpha))
-        x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=tol, maxIter=1,
+        x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=1e-15, maxIter=1,
                                                     M=M_Coarsest, x=vec(x), out=-1, flexible=true)
         x = reshape(x,n+1,m+1,1,blocks)
     end
@@ -114,7 +114,7 @@ function v_cycle_helmholtz!(n, m, h, x, b, h_matrix_level1, sl_matrix_level1, h_
         # Coarsest grid
         A_Coarsest(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, blocks), sl_matrix; h=h))
         M_Coarsest(v) = vec(jacobi_helmholtz_method!(n, m, h, x, reshape(v, n+1, m+1,1,blocks), sl_matrix; max_iter=1, use_gmres_alpha=use_gmres_alpha)) #         M_Jacobi(n, h, x, sl_matrix, 1, v; use_gmres_alpha=use_gmres_alpha)
-        x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=tol, maxIter=1,
+        x,flag,err,iter,resvec = fgmres_func(A_Coarsest, vec(b), v2_iter, tol=1e-15, maxIter=1,
                                                     M=M_Coarsest, x=vec(x), out=-1, flexible=true)
         x = reshape(x, n+1, m+1,1,blocks)
     end

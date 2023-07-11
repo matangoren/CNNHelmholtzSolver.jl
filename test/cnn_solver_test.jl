@@ -34,11 +34,11 @@ end
 
 # setup
 # maybe try 272x192 with f=2.7
-n = 272 #240#352# 272 #352 #560 #352
-m = 176 #160#240# 192 #240 #304 #240
+n = 352 # 272 #352 #560 #352
+m = 240 # 192 #240 #304 #240
 
 domain = [0, 13.5, 0, 4.2]
-domain = [0.0, 14.727272727272727, 0.0, 4.48]
+# domain = [0.0, 14.727272727272727, 0.0, 4.48]
 h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
 
 # n += 32
@@ -46,11 +46,14 @@ h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
 
 # generating kappa
 kappa_i, c = get2DSlownessLinearModel(n,m;normalized=false)
-medium = kappa_i.^2
+medium = readdlm("FWI_(384, 256)_FC1_GN10.dat", '\t', r_type);
+medium = medium[1:n+1,1:m+1]
+kappa_i = sqrt.(medium)
+# medium = kappa_i.^2
 c = maximum(kappa_i)
 
 omega_exact = r_type((0.1*2*pi) / (c*maximum(h)))
-f_fwi = 2.7#3.9# 2.7 #3.9 # 6.2 # 3.9
+f_fwi = 3.9# 2.7 #3.9 # 6.2 # 3.9
 omega_fwi = r_type(2*pi*f_fwi)
 
 println("c=$(c) - h=$(h)")
@@ -86,8 +89,7 @@ solver = setMediumParameters(solver, Helmholtz_param)
 
 println(solver_type)
 result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver,0)|>cpu
-exit()
-plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
+# plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 
 
 # new_medium = readdlm("FWI_(384, 256)_FC1_GN10.dat", '\t', Float64);
@@ -96,8 +98,8 @@ plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n 
 # Helmholtz_param = HelmholtzParam(M,Float64.(gamma),Float64.(new_medium),Float64(omega_fwi),true,useSommerfeldBC)
 
 # solver = setMediumParameters(solver, Helmholtz_param)
-solver = retrain(1,1,solver;iterations=10, initial_set_size=128, lr=1e-6)
+solver = retrain(1,1,solver;iterations=4, batch_size=16, initial_set_size=128, lr=1e-7)
 
 result, param = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver,0)|>cpu
-plot_results("test_16_cnn_solver_point_source_result_$(solver_type)_after_retrain", result, n ,m)
+# plot_results("test_16_cnn_solver_point_source_result_$(solver_type)_after_retrain", result, n ,m)
 

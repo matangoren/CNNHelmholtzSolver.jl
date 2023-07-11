@@ -152,11 +152,41 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
     return reshape(x1,(n+1)*(m+1),blocks)|>pu
     
 end
+using MappedArrays
+using DelimitedFiles
+using MAT
 
+function get_data_x_y(dir_name, set_size, n, m, gamma)
+
+    println("In get_data_x_y set_size = $(set_size)")
+
+    function loadDataFromFile(filename::String)
+        file = matopen(filename, "r"); file_data = read(file); close(file);
+        return file_data["x"], file_data["y"]
+
+    end
+    datadir = dirname(dir_name)
+    data = mappedarray(loadDataFromFile, readdir(datadir, join=true))
+
+    x = zeros(r_type, n+1, m+1, 4, set_size)
+    y = zeros(r_type, n+1, m+1, 2, set_size)
+
+    for i=1:set_size
+        if mod(i,1000) == 0
+            @info "$(Dates.format(now(), "HH:MM:SS")) In data point #$(i)/$(set_size)"
+        end
+        data_i = data[i]
+        x[:,:,1:3,i] = data_i[1]
+        x[:,:,4,i] = gamma
+        y[:,:,:,i] = data_i[2]
+    end
+
+    return x, y
+end
 
 function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa, omega, gamma,
                             set_size, batch_size, iterations, lr;
-                            e_vcycle_input=true, v2_iter=10, level=3, threshold=50,
+                            e_vcycle_input=false, v2_iter=10, level=3, threshold=50,
                             axb=false, jac=false, norm_input=false,
                             gmres_restrt=1, σ=elu, blocks=8, relaxation_tol=1e-4)
 
@@ -168,6 +198,12 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
                                         e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, threshold=threshold,
                                         axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, blocks=blocks)
     
+    # train_set_path = generate_random_data!("check_retrain", set_size, n, m, h, kappa, omega, gamma;
+    #                                     e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level,
+    #                                     threshold=threshold,
+    #                                     axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=true, data_folder_type="train")
+
+    # X, Y = get_data_x_y(train_set_path, set_size, n, m, gamma|>cpu)
     
     dataset = UnetDatasetFromArray(X,Y)
     @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
@@ -176,13 +212,13 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
     loss!(x, y) = error_loss!(model, x, y)
     loss!(tuple) = loss!(tuple[1], tuple[2])
     
-    # A(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, Int64(prod(size(v)) / ((n+1)*(m+1)))), helmholtz_matrix; h=h))
-    # function SM(r)
-    #     bs = Int64(prod(size(r)) / ((n+1)*(m+1)))
-    #     e_vcycle = a_type(zeros(n+1,m+1,1,bs))
-    #     e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,bs), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=bs, tol=relaxation_tol)
-    #     return vec(e_vcycle)
-    # end
+    A(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, Int64(prod(size(v)) / ((n+1)*(m+1)))), helmholtz_matrix; h=h))
+    function SM(r)
+        bs = Int64(prod(size(r)) / ((n+1)*(m+1)))
+        e_vcycle = a_type(zeros(n+1,m+1,1,bs))
+        e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,bs), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=bs, tol=relaxation_tol)
+        return vec(e_vcycle)
+    end
 
     opt = RADAM(lr)
     data_loader = DataLoader(dataset, batchsize=batch_size, shuffle=true)

@@ -44,6 +44,7 @@ function Base.getindex(d::UnetDatasetFromArray, ids::Array)
     batch_size = length(ids)
     paired_ids = rand(1:size(d.X,4), batch_size)
     alphas = rand(r_type, batch_size)
+    alphas = ones(r_type, batch_size)
 
     xs = a_float_type[]
     ys = a_float_type[]

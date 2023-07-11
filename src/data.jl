@@ -28,7 +28,7 @@ function generate_vcycle!(n, m, h, kappa, omega, gamma::a_float_type, b::a_type;
     if restrt == -1
         restrt = rand(1:10)
     end
-    x_vcycle, = fgmres_func(A, vec(b), restrt, tol=1e-8, maxIter=1, M=M, x=vec(x0), out=-1, flexible=true)
+    x_vcycle, = fgmres_func(A, vec(b), restrt, tol=1e-10, maxIter=1, M=M, x=vec(x0), out=-1, flexible=true)
     x_vcycle_channels = complex_grid_to_channels!(reshape(x_vcycle,n+1,m+1,1,blocks), blocks=blocks)
     return x_vcycle, x_vcycle_channels
 end
@@ -70,7 +70,7 @@ function generate_r_vcycle!(n, m, h, kappa, omega, gamma::a_float_type, x_true::
     x_vcycle = reshape(x_vcycle,n+1,m+1,1,blocks)
     e_true = x_true .- x_vcycle
     r_vcycle = b_true .- helmholtz_chain!(x_vcycle, helmholtz_matrix; h=h)
-    # print norm of r and e
+
     return r_vcycle, e_true
 end
 
@@ -134,22 +134,23 @@ function augment_data(data_r, data_e, num_augmented)
 end
 
 function generate_retrain_random_data(data_set_m, n, m, h, kappa, omega, gamma; 
-    e_vcycle_input=true, v2_iter=10, level=3, threshold=50,
+    e_vcycle_input=false, v2_iter=10, level=3, threshold=50,
     axb=false, jac=false, norm_input=false, gmres_restrt=1, blocks=8)
 
     data_r_vector = a_float_type[]
     data_e_vector = a_float_type[]
 
     batches_partitions = collect(Iterators.partition(1:data_set_m, blocks))
-    kappa_repeated = repeat(kappa,1,1,1,blocks)
+    kappa_repeated = repeat(kappa.^2,1,1,1,blocks)
     gamma_repeated = repeat(gamma,1,1,1,blocks)
     for part in batches_partitions
         batch_size = length(part)
-        r_vcycle_channels, e_true_channels = generate_r_e_batch(n, m, h, kappa, omega, gamma; e_vcycle_input=false,
+
+        r_vcycle_channels, e_true_channels = generate_r_e_batch(n, m, h, kappa, omega, gamma; e_vcycle_input=e_vcycle_input,
                                                     v2_iter=v2_iter, level=level, axb=axb, jac=jac, blocks=batch_size)
         
         if batch_size != blocks
-            kappa_repeated = repeat(kappa,1,1,1,batch_size)
+            kappa_repeated = repeat(kappa.^2,1,1,1,batch_size)
             gamma_repeated = repeat(gamma,1,1,1,batch_size)
         end
 
@@ -169,7 +170,7 @@ function generate_random_data!(test_name, data_set_m, n, m, h, kappa, omega, gam
     
     if isdir(data_dirname)
         println("using previous data :)")
-        return data_dirname
+        return "$(data_dirname)/"
     end
     mkpath(data_dirname)
 
@@ -207,8 +208,8 @@ function generate_random_data!(test_name, data_set_m, n, m, h, kappa, omega, gam
         #     append!(dataset,[(input_t |> pu, e_t |> pu)])
         # end
     end
-
-    return data_dirname
+    # just for now - return it to be just data_dirname later
+    return "$(data_dirname)/"
 end
 
 function get_csv_set!(path, data_set_m)
