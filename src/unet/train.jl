@@ -2,7 +2,7 @@ using BSON: @save
 
 include("training_utils.jl")
 include("losses.jl")
-
+include("CustomDatasets.jl")
 
 
 function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
@@ -12,7 +12,7 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
                             model_type=SUnet, k_type=NaN, k_chs=-1, indexes=3, data_train_path="", data_test_path="", full_loss=false, residual_loss=false, error_details=false, gmres_restrt=1, σ=elu, same_kappa=false, linear_kappa=true) #, model=NaN)
 
     @info "$(Dates.format(now(), "HH:MM:SS")) - Start Train $(test_name)"
-    
+
     train_set_path = generate_random_data!(test_name, train_size, n, m, h, kappa, omega, gamma;
                                                 e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, data_augmentetion =data_augmentetion,
                                                 kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, kappa_smooth=kappa_smooth, 
@@ -28,20 +28,23 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
         println("after data generation GPU memory status $(CUDA.memory_status())")
     end
 
-    train_set_x, train_set_y = get_data_x_y(train_set_path, train_size, n, m, gamma|>cpu)
-    test_set_x, test_set_y = get_data_x_y(test_set_path, test_size, n, m, gamma|>cpu)
+    # train_set_x, train_set_y = get_data_x_y(train_set_path, train_size, n, m, gamma|>cpu)
+    # test_set_x, test_set_y = get_data_x_y(test_set_path, test_size, n, m, gamma|>cpu)
+    train_dataset = UnetDatasetFromDirectory(train_set_path, train_size, gamma|>cpu)
+    test_dataset = UnetDatasetFromDirectory(test_set_path, test_size, gamma|>cpu)
 
     if use_gpu == true
         println("after data x_y GPU memory status $(CUDA.memory_status())")
     end
 
-    test_loss = zeros(Int64(iterations))|>cpu
-    train_loss = zeros(Int64(iterations))|>cpu
+    train_loss = zeros(Int64(iterations/4))|>cpu # not used for now
+    test_loss = zeros(Int64(iterations/4))|>cpu
 
     CSV.write("models/$(test_name)/train_log/loss.csv", DataFrame(Train=[], Test=[]), delim = ';')
     
-    train_data_loader = DataLoader((train_set_x, train_set_y), batchsize=batch_size, shuffle=true)
-    test_data_loader = DataLoader((test_set_x, test_set_y), batchsize=batch_size, shuffle=false)
+    # train_data_loader = DataLoader((train_set_x, train_set_y), batchsize=batch_size, shuffle=true)
+    train_data_loader = DataLoader(train_dataset, batchsize=batch_size, shuffle=true)
+    test_data_loader = DataLoader(test_dataset, batchsize=batch_size, shuffle=false)
 
     
     loss!(x, y) = error_loss!(model, x, y)
@@ -57,37 +60,37 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
             println("GPU memory status $(CUDA.memory_status())")
         end
         if mod(iteration,smaller_lr) == 0
-            lr = lr / 2
+            lr = max(lr / 10, 1e-6)
             opt = RADAM(lr)
             smaller_lr = ceil(Int64,smaller_lr / 2)
-            @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr) Batch Size $(batch_size)"
+            @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr)"
         end
-        if iteration > 92
-            println("Training - $(iteration)")
+        # if iteration > 140
+        #  lr = 1e-6
+        #  # opt = RADAM(lr) # forgot to use this lr
+         
+        # end
+        if iteration > 0
+            println("Training")
             Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
 
             @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration))"    
-            # train_loss[Int64(iteration/4)] = dataset_loss!(train_data_loader, loss!) / train_size
-            test_loss[Int64(iteration)] = dataset_loss!(test_data_loader, loss!) / test_size
-            CSV.write("models/$(test_name)/train_log/loss.csv", DataFrame(Train=[train_loss[Int64(iteration)]], Test=[test_loss[Int64(iteration)]]), delim = ';',append=true)
-            @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Train loss value = $(train_loss[Int64(iteration)]) , Test loss value = $(test_loss[Int64(iteration)])"    
+
+            if mod(iteration, 4) == 0 # just to save some run-time :)
+                test_loss[Int64(iteration/4)] = dataset_loss!(test_data_loader, loss!) / test_size
+                CSV.write("models/$(test_name)/train_log/loss.csv", DataFrame(Test=[test_loss[Int64(iteration/4)]]), delim = ';',append=true)
+                @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Test loss value = $(test_loss[Int64(iteration/4)])"       
+            end
             
         
-            if mod(iteration,20) == 0
-                if use_gpu == true
-                    println("GPU usage BEFORE saving $(CUDA.available_memory() / 1e9)")
-                end
+            if mod(iteration,10) == 0
                 model = model|>cpu
                 @save "models/$(test_name)/model.bson" model
                 @info "$(Dates.format(now(), "HH:MM:SS")) - Save Model $(test_name).bson"
-
                 model = model|>cgpu
-                if use_gpu==true
-                    println("GPU usage AFTER saving $(CUDA.available_memory() / 1e9)")
-                end
             end
         end
-        
+             
     end
 
     model = model|>cpu

@@ -1,28 +1,24 @@
-struct UnetDatasetFromDirectory
+mutable struct UnetDatasetFromDirectory
     data_path::String
     dataset_size::Int
+    gamma::Array # make sure it's on CPU
 end
 
 function Base.getindex(d::UnetDatasetFromDirectory, i::Int)
     file = matopen("$(d.data_path)/sample_$(i).mat", "r"); data = read(file); close(file);
-    return data["x"], data["y"]
+    return cat(data["x"], d.gamma, dims=3), data["y"]
 end
 
-function Base.getindex(d::UnetDatasetFromDirectory, ids::Array)
-    x, y = d[ids[1]]
+function Base.getindex(d::UnetDatasetFromDirectory, ids::Union{Array,UnitRange})
+    xs = a_float_type[]
+    ys = a_float_type[]
 
-    xs = Array{r_type}(undef, size(x,1), size(x,2), size(x,3), length(ids))
-    ys = Array{r_type}(undef, size(y,1), size(y,2), size(y,3), length(ids))
-
-    xs[:,:,:, 1] .= x
-    ys[:,:,:, 1] .= y
-
-    for (i, id) in enumerate(ids[2:end])
+    for id in ids
         x, y = d[id]
-        xs[:,:,:, i + 1] .= x
-        ys[:,:,:, i + 1] .= y
+        append!(xs, [x|>cgpu])
+        append!(ys, [y|>cgpu])
     end
-    xs, ys
+    cat(xs...,dims=4), cat(ys...,dims=4)
 end
 
 Base.IndexStyle(::Type{UnetDatasetFromDirectory}) = IndexLinear()
@@ -40,11 +36,10 @@ function Base.getindex(d::UnetDatasetFromArray, i::Int)
     return d.X[:,:,:,i], d.Y[:,:,:,i]
 end
 
-function Base.getindex(d::UnetDatasetFromArray, ids::Array)
+function Base.getindex(d::UnetDatasetFromArray, ids::Union{Array,UnitRange})
     batch_size = length(ids)
     paired_ids = rand(1:size(d.X,4), batch_size)
     # alphas = rand(r_type, batch_size)
-    # alphas = ones(r_type, batch_size)
 
     xs = a_float_type[]
     ys = a_float_type[]

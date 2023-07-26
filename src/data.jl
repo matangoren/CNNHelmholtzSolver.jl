@@ -46,12 +46,12 @@ function generate_jacobi!(n, m, h, kappa, omega, gamma, b; v2_iter=10, level=3, 
         return vec(x)
     end
 
-    x0 = a_type(zeros(n+1,m+1,1,blocks))
+    x0 = a_type(zeros(c_type,n+1,m+1,1,blocks))
     if restrt == -1
         restrt = rand(1:10)
     end
 
-    x_vcycle, = fgmres_func(A, vec(b), restrt, tol=1e-8, maxIter=1,M=M, x=vec(x0), out=-1, flexible=true)
+    x_vcycle, = fgmres_func(A, vec(b), restrt, tol=1e-10, maxIter=1, M=M, x=vec(x0), out=-1, flexible=true)
     x_vcycle_channels = complex_grid_to_channels!(reshape(x_vcycle,n+1,m+1,1,blocks); blocks=blocks)
     return x_vcycle, x_vcycle_channels
 end
@@ -78,7 +78,7 @@ end
 function generate_r_e_batch(n, m, h, kappa, omega, gamma; 
     e_vcycle_input=true, norm_input=false, v2_iter=10, level=3, axb=false, jac=false, gmres_restrt=1, blocks=1)
 
-    x_true = a_type(randn(n+1,m+1, 1, blocks))
+    x_true = a_type(randn(c_type,n+1,m+1, 1, blocks)) # FIXED!!!
 
     if axb == true
         # Generate b
@@ -170,7 +170,7 @@ function generate_random_data!(test_name, data_set_m, n, m, h, kappa, omega, gam
     
     if isdir(data_dirname)
         println("using previous data :)")
-        return "$(data_dirname)/"
+        return data_dirname
     end
     mkpath(data_dirname)
 
@@ -209,7 +209,7 @@ function generate_random_data!(test_name, data_set_m, n, m, h, kappa, omega, gam
         # end
     end
     # just for now - return it to be just data_dirname later
-    return "$(data_dirname)/"
+    return data_dirname
 end
 
 function get_csv_set!(path, data_set_m)

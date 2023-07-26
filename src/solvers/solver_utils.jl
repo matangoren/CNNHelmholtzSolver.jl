@@ -152,37 +152,38 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
     return reshape(x1,(n+1)*(m+1),blocks)|>pu
     
 end
-using MappedArrays
-using DelimitedFiles
-using MAT
 
-function get_data_x_y(dir_name, set_size, n, m, gamma)
+# using MappedArrays
+# using DelimitedFiles
+# using MAT
 
-    println("In get_data_x_y set_size = $(set_size)")
+# function get_data_x_y(dir_name, set_size, n, m, gamma)
 
-    function loadDataFromFile(filename::String)
-        file = matopen(filename, "r"); file_data = read(file); close(file);
-        return file_data["x"], file_data["y"]
+#     println("In get_data_x_y set_size = $(set_size)")
 
-    end
-    datadir = dirname(dir_name)
-    data = mappedarray(loadDataFromFile, readdir(datadir, join=true))
+#     function loadDataFromFile(filename::String)
+#         file = matopen(filename, "r"); file_data = read(file); close(file);
+#         return file_data["x"], file_data["y"]
 
-    x = zeros(r_type, n+1, m+1, 4, set_size)
-    y = zeros(r_type, n+1, m+1, 2, set_size)
+#     end
+#     datadir = dirname(dir_name)
+#     data = mappedarray(loadDataFromFile, readdir(datadir, join=true))
 
-    for i=1:set_size
-        if mod(i,1000) == 0
-            @info "$(Dates.format(now(), "HH:MM:SS")) In data point #$(i)/$(set_size)"
-        end
-        data_i = data[i]
-        x[:,:,1:3,i] = data_i[1]
-        x[:,:,4,i] = gamma
-        y[:,:,:,i] = data_i[2]
-    end
+#     x = zeros(r_type, n+1, m+1, 4, set_size)
+#     y = zeros(r_type, n+1, m+1, 2, set_size)
 
-    return x, y
-end
+#     for i=1:set_size
+#         if mod(i,1000) == 0
+#             @info "$(Dates.format(now(), "HH:MM:SS")) In data point #$(i)/$(set_size)"
+#         end
+#         data_i = data[i]
+#         x[:,:,1:3,i] = data_i[1]
+#         x[:,:,4,i] = gamma
+#         y[:,:,:,i] = data_i[2]
+#     end
+
+#     return x, y
+# end
 
 function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa, omega, gamma,
                             set_size, batch_size, iterations, lr;
@@ -193,7 +194,7 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
     _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
     coefficient = r_type(minimum(h)^2)
     @info "$(Dates.format(now(), "HH:MM:SS")) - Start Re-Train for $(base_model_folder)\\$(new_model_name)"
-
+    println(set_size)
     X, Y = generate_retrain_random_data(set_size, n, m, h, kappa, omega, gamma;
                                         e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, threshold=threshold,
                                         axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, blocks=blocks)

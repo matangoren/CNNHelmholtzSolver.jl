@@ -25,199 +25,6 @@ EncoderDownSampleBlock(in_channels, out_channels; kernel=(5,5), pad=2, σ=elu) =
                                 )                                                    
 
 
-# Encoder: half unet netwrok (only encoding down-stream)
-struct Encoder
-    conv_in_8
-    downsample_8_16
-    downsample_16_32
-    downsample_32_64
-    downsample_64_128
-end
-
-@functor Encoder
-function Encoder(channels::Int = 2, labels::Int = channels; kernel = (3, 3), σ=elu, resnet_type=SResidualBlock)
-    conv_in_8 = Chain(
-        Conv(kernel, channels=>8, stride=(1,1), pad=1; init=_random_normal),
-        BatchNorm(8)
-    )|>cgpu
-    
-    downsample_8_16 = EncoderDownSampleBlock(8, 16)|>cgpu
-    downsample_16_32 = EncoderDownSampleBlock(16, 32)|>cgpu
-    downsample_32_64 = EncoderDownSampleBlock(32, 64)|>cgpu
-    downsample_64_128 = EncoderDownSampleBlock(64, 128)|>cgpu
-
-    Encoder(conv_in_8, downsample_8_16, downsample_16_32, downsample_32_64, downsample_64_128)
-end
-
-function (u::Encoder)(x::AbstractArray)
-    # nxmxinxbs => nxmx8xbs
-    x_8 = u.conv_in_8(x)
-    # nxmx8xbs => n/2xm/2x16xbs
-    x_16 = u.downsample_8_16(x_8)
-    # n/2xm/2x16xbs => n/4xm/4x32xbs
-    x_32 = u.downsample_16_32(x_16)
-    # n/4xm/4x32xbs => n/8xm/8x64xbs
-    x_64 = u.downsample_32_64(x_32)
-    # n/8xm/8x64xbs => n/16xm/16x128xbs
-    x_128 = u.downsample_64_128(x_64)
-
-    return [x_16, x_32, x_64, x_128]
-end
-
-struct bottleNeckBlock
-    expand_layer
-    depth_layer
-    shrink_layer
-end
-
-@functor bottleNeckBlock
-
-function bottleNeckBlock(in_channels, expanded_channels; kernel=(3,3), pad=1, σ=elu)
-    expand_layer = Chain(
-        Conv((1,1), in_channels=>expanded_channels, stride=(1,1), pad=0; init=_random_normal),
-        BatchNorm(expanded_channels)
-    )|>cgpu
-    depth_layer = Chain(
-        Conv(kernel, expanded_channels=>expanded_channels, pad=pad, stride=(1,1), groups=expanded_channels; init=_random_normal),
-        BatchNorm(expanded_channels)
-    )|> cgpu
-    shrink_layer = Chain(
-        Conv((1,1), expanded_channels=>in_channels, stride=(1,1), pad = 0; init=_random_normal),
-        BatchNorm(in_channels), 
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
-    )|>cgpu
-
-    bottleNeckBlock(expand_layer, depth_layer, shrink_layer)
-end
-
-function (u::bottleNeckBlock)(x::AbstractArray, encoded_vector::AbstractArray)
-    x = u.expand_layer(x)
-    x = u.depth_layer(x) + encoded_vector
-    return u.shrink_layer(x)
-end
-
-# solver
-struct Solver
-    downsample_in_8 
-    downsample_8_16
-    downsample_16_32
-    downsample_32_64
-    bottleneck_8
-    bottleneck_16
-    bottleneck_32
-    bottleneck_64
-    conv_64
-    conv_32
-    conv_16
-    conv_8
-    upsample_64_32
-    upsample_32_16
-    upsample_16_8
-    upsample_8_out
-end
-
-@functor Solver
-
-function Solver(channels::Int = 2, labels::Int = channels; kernel = (3, 3), σ=elu, resnet_type=SResidualBlock)
-    # nxmxinxbs => n/2xm/2x8xbs
-    downsample_in_8 = Chain(
-        Conv((5,5), channels=>8, stride=(2,2), pad = 2; init=_random_normal),
-        BatchNorm(8), 
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
-    ) |> cgpu
-
-    # n/2xm/2x8xbs => n/4xm/4x16xbs
-    downsample_8_16 = Chain(
-        Conv((5,5), 8=>16, stride=(2,2), pad = 2; init=_random_normal),
-        BatchNorm(16),
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
-    ) |> cgpu
-
-    # n/4xm/4x16xbs => n/8xm/8x32xbs
-    downsample_16_32 = Chain(
-        Conv((5,5), 16=>32, stride=(2,2), pad = 2; init=_random_normal),
-        BatchNorm(32),
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
-    ) |> cgpu
-
-    # n/8xm/8x32xbs => n/16xm/16x64xbs
-    downsample_32_64 = Chain(
-        Conv((5,5), 32=>64, stride=(2,2), pad = 2; init=_random_normal),
-        BatchNorm(64),
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
-    ) |> cgpu
-
-    bottleneck_8 = bottleNeckBlock(8,16) |> cgpu
-    bottleneck_16 = bottleNeckBlock(16,32) |> cgpu
-    bottleneck_32 = bottleNeckBlock(32,64) |> cgpu
-    bottleneck_64 = bottleNeckBlock(64,128) |> cgpu
-
-    conv_64 = Conv((1,1), 64=>64, stride=(1,1), pad = 0, groups=64; init=_random_normal) |> cgpu
-
-    conv_32 = Chain(
-        Conv((5,5), 64=>32, stride=(1,1), pad = 2; init=_random_normal),
-        BatchNorm(32),
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
-        Conv((5,5), 32=>32, stride=(1,1), pad = 2; init=_random_normal),
-        BatchNorm(32),
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
-    ) |> cgpu
-
-    conv_16 = Chain(
-        Conv((5,5), 32=>16, stride=(1,1), pad = 2; init=_random_normal),
-        BatchNorm(16),
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
-        Conv((5,5), 16=>16, stride=(1,1), pad = 2; init=_random_normal),
-        BatchNorm(16),
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
-    ) |> cgpu
-
-    conv_8 = Chain(
-        Conv((5,5), 16=>8, stride=(1,1), pad = 2; init=_random_normal),
-        BatchNorm(8),
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
-        Conv((5,5), 8=>8, stride=(1,1), pad = 2; init=_random_normal),
-        BatchNorm(8),
-        x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
-    ) |> cgpu
-
-    upsample_64_32 = ConvTranspose((5,5), 64=>32, stride=(2,2), pad = 2; init=_random_normal) |> cgpu
-    upsample_32_16 = ConvTranspose((5,5), 32=>16, stride=(2,2), pad = 2; init=_random_normal) |> cgpu
-    upsample_16_8 = ConvTranspose((5,5), 16=>8, stride=(2,2), pad = 2; init=_random_normal) |> cgpu
-    upsample_8_out = ConvUp(8, labels; σ=σ) |> cgpu
-    
-
-    Solver(
-        downsample_in_8, downsample_8_16, downsample_16_32, downsample_32_64,
-        bottleneck_8, bottleneck_16, bottleneck_32, bottleneck_64,
-        conv_64, conv_32, conv_16, conv_8,
-        upsample_64_32, upsample_32_16, upsample_16_8, upsample_8_out
-    )
-end
-
-function (u::Solver)(x::AbstractArray, encoded_vectors)
-    x_8 = u.bottleneck_8(u.downsample_in_8(x), encoded_vectors[1])
-    x_16 = u.bottleneck_16(u.downsample_8_16(x_8), encoded_vectors[2])
-    x_32 = u.bottleneck_32(u.downsample_16_32(x_16), encoded_vectors[3])
-    # => n/16xm/16x64xbs
-    x_64 = u.bottleneck_64(u.downsample_32_64(x_32), encoded_vectors[4])
-
-    x_64_up = u.conv_64(x_64)
-
-    x_32_up = u.upsample_64_32(x_64_up)
-    x_32_up = u.conv_32(cat(x_32_up, x_32, dims=3))
-
-    x_16_up = u.upsample_32_16(x_32_up)
-    x_16_up = u.conv_16(cat(x_16_up, x_16, dims=3))
-
-    x_8_up = u.upsample_16_8(x_16_up)
-    x_8_up = u.conv_8(cat(x_8_up, x_8, dims=3))
-    
-    return u.upsample_8_out(x_8_up)
-end
-
-
-
 struct UNetUpBlock
     upsample
   end
@@ -275,17 +82,14 @@ function (u::FFSDNUnet)(x::AbstractArray, features)
     x1 = u.conv_blocks[2](u.conv_down_blocks[2](cat(op, features[1], dims=3)))
     # (n/4) X (n/4) X 32 X bs -> (n/8) X (n/8) X 64 X bs
     x2 = u.conv_blocks[3](u.conv_down_blocks[3](cat(x1, features[2], dims=3)))
-    # without grid downsample
     # (n/8) X (n/8) X 64 X bs -> (n/16) X (n/16) X 128 X bs
     x3 = u.conv_blocks[4](u.conv_down_blocks[4](cat(x2, features[3], dims=3)))
 
-    # 2 instead of 3 resnet steps
     # (n/16) X (n/16) X 128 X bs
     up_x3 = u.conv_blocks[5](x3)
     up_x3 = u.conv_blocks[6](up_x3)
     up_x3 = u.conv_blocks[7](up_x3)
 
-    # remove the first layer
     # (n/16) X (n/16) X 128 X bs -> (n/8) X (n/8) X 128 X bs
     up_x1 = u.up_blocks[1](cat(up_x3, features[4], dims=3), x2)
     # (n/8) X (n/8) X 128 X bs -> (n/4) X (n/4) X 64 X bs
@@ -294,11 +98,6 @@ function (u::FFSDNUnet)(x::AbstractArray, features)
     up_x4 = u.up_blocks[3](cat(up_x2, features[6], dims=3), op)
     # (n/2) X (n/2) X 32 X bs -> (n/2) X (n/2) X 16 X bs
     up_x5 = u.up_blocks[4](cat(up_x4, features[7], dims=3))
-
-    # if boundary_gamma === nothing
-    #     return u.up_blocks[end](up_x5)
-    # end
-    # e = (1 .- (u.alpha .* boundary_gamma)) |> cgpu
 
     # (n/2) X (n/2) X 16 X bs -> n X n X 2 X bs
     return u.up_blocks[end](up_x5)
@@ -472,3 +271,196 @@ function create_model!(e_vcycle_input,kappa_input,gamma_input;kernel=(3,3),type=
         end
     end
 end
+
+
+# Bar and Ido's model
+# Encoder: half unet netwrok (only encoding down-stream)
+# struct Encoder
+#     conv_in_8
+#     downsample_8_16
+#     downsample_16_32
+#     downsample_32_64
+#     downsample_64_128
+# end
+
+# @functor Encoder
+# function Encoder(channels::Int = 2, labels::Int = channels; kernel = (3, 3), σ=elu, resnet_type=SResidualBlock)
+#     conv_in_8 = Chain(
+#         Conv(kernel, channels=>8, stride=(1,1), pad=1; init=_random_normal),
+#         BatchNorm(8)
+#     )|>cgpu
+    
+#     downsample_8_16 = EncoderDownSampleBlock(8, 16)|>cgpu
+#     downsample_16_32 = EncoderDownSampleBlock(16, 32)|>cgpu
+#     downsample_32_64 = EncoderDownSampleBlock(32, 64)|>cgpu
+#     downsample_64_128 = EncoderDownSampleBlock(64, 128)|>cgpu
+
+#     Encoder(conv_in_8, downsample_8_16, downsample_16_32, downsample_32_64, downsample_64_128)
+# end
+
+# function (u::Encoder)(x::AbstractArray)
+#     # nxmxinxbs => nxmx8xbs
+#     x_8 = u.conv_in_8(x)
+#     # nxmx8xbs => n/2xm/2x16xbs
+#     x_16 = u.downsample_8_16(x_8)
+#     # n/2xm/2x16xbs => n/4xm/4x32xbs
+#     x_32 = u.downsample_16_32(x_16)
+#     # n/4xm/4x32xbs => n/8xm/8x64xbs
+#     x_64 = u.downsample_32_64(x_32)
+#     # n/8xm/8x64xbs => n/16xm/16x128xbs
+#     x_128 = u.downsample_64_128(x_64)
+
+#     return [x_16, x_32, x_64, x_128]
+# end
+
+# struct bottleNeckBlock
+#     expand_layer
+#     depth_layer
+#     shrink_layer
+# end
+
+# @functor bottleNeckBlock
+
+# function bottleNeckBlock(in_channels, expanded_channels; kernel=(3,3), pad=1, σ=elu)
+#     expand_layer = Chain(
+#         Conv((1,1), in_channels=>expanded_channels, stride=(1,1), pad=0; init=_random_normal),
+#         BatchNorm(expanded_channels)
+#     )|>cgpu
+#     depth_layer = Chain(
+#         Conv(kernel, expanded_channels=>expanded_channels, pad=pad, stride=(1,1), groups=expanded_channels; init=_random_normal),
+#         BatchNorm(expanded_channels)
+#     )|> cgpu
+#     shrink_layer = Chain(
+#         Conv((1,1), expanded_channels=>in_channels, stride=(1,1), pad = 0; init=_random_normal),
+#         BatchNorm(in_channels), 
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
+#     )|>cgpu
+
+#     bottleNeckBlock(expand_layer, depth_layer, shrink_layer)
+# end
+
+# function (u::bottleNeckBlock)(x::AbstractArray, encoded_vector::AbstractArray)
+#     x = u.expand_layer(x)
+#     x = u.depth_layer(x) + encoded_vector
+#     return u.shrink_layer(x)
+# end
+
+# # solver
+# struct Solver
+#     downsample_in_8 
+#     downsample_8_16
+#     downsample_16_32
+#     downsample_32_64
+#     bottleneck_8
+#     bottleneck_16
+#     bottleneck_32
+#     bottleneck_64
+#     conv_64
+#     conv_32
+#     conv_16
+#     conv_8
+#     upsample_64_32
+#     upsample_32_16
+#     upsample_16_8
+#     upsample_8_out
+# end
+
+# @functor Solver
+
+# function Solver(channels::Int = 2, labels::Int = channels; kernel = (3, 3), σ=elu, resnet_type=SResidualBlock)
+#     # nxmxinxbs => n/2xm/2x8xbs
+#     downsample_in_8 = Chain(
+#         Conv((5,5), channels=>8, stride=(2,2), pad = 2; init=_random_normal),
+#         BatchNorm(8), 
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
+#     ) |> cgpu
+
+#     # n/2xm/2x8xbs => n/4xm/4x16xbs
+#     downsample_8_16 = Chain(
+#         Conv((5,5), 8=>16, stride=(2,2), pad = 2; init=_random_normal),
+#         BatchNorm(16),
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
+#     ) |> cgpu
+
+#     # n/4xm/4x16xbs => n/8xm/8x32xbs
+#     downsample_16_32 = Chain(
+#         Conv((5,5), 16=>32, stride=(2,2), pad = 2; init=_random_normal),
+#         BatchNorm(32),
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
+#     ) |> cgpu
+
+#     # n/8xm/8x32xbs => n/16xm/16x64xbs
+#     downsample_32_64 = Chain(
+#         Conv((5,5), 32=>64, stride=(2,2), pad = 2; init=_random_normal),
+#         BatchNorm(64),
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
+#     ) |> cgpu
+
+#     bottleneck_8 = bottleNeckBlock(8,16) |> cgpu
+#     bottleneck_16 = bottleNeckBlock(16,32) |> cgpu
+#     bottleneck_32 = bottleNeckBlock(32,64) |> cgpu
+#     bottleneck_64 = bottleNeckBlock(64,128) |> cgpu
+
+#     conv_64 = Conv((1,1), 64=>64, stride=(1,1), pad = 0, groups=64; init=_random_normal) |> cgpu
+
+#     conv_32 = Chain(
+#         Conv((5,5), 64=>32, stride=(1,1), pad = 2; init=_random_normal),
+#         BatchNorm(32),
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
+#         Conv((5,5), 32=>32, stride=(1,1), pad = 2; init=_random_normal),
+#         BatchNorm(32),
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
+#     ) |> cgpu
+
+#     conv_16 = Chain(
+#         Conv((5,5), 32=>16, stride=(1,1), pad = 2; init=_random_normal),
+#         BatchNorm(16),
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
+#         Conv((5,5), 16=>16, stride=(1,1), pad = 2; init=_random_normal),
+#         BatchNorm(16),
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
+#     ) |> cgpu
+
+#     conv_8 = Chain(
+#         Conv((5,5), 16=>8, stride=(1,1), pad = 2; init=_random_normal),
+#         BatchNorm(8),
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x)),
+#         Conv((5,5), 8=>8, stride=(1,1), pad = 2; init=_random_normal),
+#         BatchNorm(8),
+#         x->(σ == elu ? σ.(x,0.2f0) : σ.(x))
+#     ) |> cgpu
+
+#     upsample_64_32 = ConvTranspose((5,5), 64=>32, stride=(2,2), pad = 2; init=_random_normal) |> cgpu
+#     upsample_32_16 = ConvTranspose((5,5), 32=>16, stride=(2,2), pad = 2; init=_random_normal) |> cgpu
+#     upsample_16_8 = ConvTranspose((5,5), 16=>8, stride=(2,2), pad = 2; init=_random_normal) |> cgpu
+#     upsample_8_out = ConvUp(8, labels; σ=σ) |> cgpu
+    
+
+#     Solver(
+#         downsample_in_8, downsample_8_16, downsample_16_32, downsample_32_64,
+#         bottleneck_8, bottleneck_16, bottleneck_32, bottleneck_64,
+#         conv_64, conv_32, conv_16, conv_8,
+#         upsample_64_32, upsample_32_16, upsample_16_8, upsample_8_out
+#     )
+# end
+
+# function (u::Solver)(x::AbstractArray, encoded_vectors)
+#     x_8 = u.bottleneck_8(u.downsample_in_8(x), encoded_vectors[1])
+#     x_16 = u.bottleneck_16(u.downsample_8_16(x_8), encoded_vectors[2])
+#     x_32 = u.bottleneck_32(u.downsample_16_32(x_16), encoded_vectors[3])
+#     # => n/16xm/16x64xbs
+#     x_64 = u.bottleneck_64(u.downsample_32_64(x_32), encoded_vectors[4])
+
+#     x_64_up = u.conv_64(x_64)
+
+#     x_32_up = u.upsample_64_32(x_64_up)
+#     x_32_up = u.conv_32(cat(x_32_up, x_32, dims=3))
+
+#     x_16_up = u.upsample_32_16(x_32_up)
+#     x_16_up = u.conv_16(cat(x_16_up, x_16, dims=3))
+
+#     x_8_up = u.upsample_16_8(x_16_up)
+#     x_8_up = u.conv_8(cat(x_8_up, x_8, dims=3))
+    
+#     return u.upsample_8_out(x_8_up)
+# end

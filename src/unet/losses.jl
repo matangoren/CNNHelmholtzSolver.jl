@@ -1,5 +1,6 @@
 function norm_diff!(x,y)
     return sqrt(sum((x - y).^2) / sum(y.^2))
+    # return Flux.Losses.mse(x,y)
 end
 
 function error_loss!(model, input::CuArray, output::CuArray)
@@ -12,6 +13,7 @@ end
 
 function dataset_loss!(dataloader, loss_func)
     loss = 0
+    i = 0
     for (x, y) in dataloader
         loss += loss_func(x,y)
     end
