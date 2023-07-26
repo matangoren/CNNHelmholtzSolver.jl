@@ -1,8 +1,8 @@
 export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setMediumParameters,setSolverType,retrain
 
-# model_name = "without_alpha"
+model_name = "without_alpha"
 # model_name = "original_model_new_training_120_lr_1e-3"
-model_name = "original_model_new_training_120_lr_1e-4"
+# model_name = "original_model_new_training_120_lr_1e-4"
 
 file_path = joinpath(pwd(), "results/$(model_name)_solver_info.csv")
 CSV.write(file_path, DataFrame(Cycle=[], FreqIndex=[], Omega=[], Iterations=[], Error=[]), delim=';') 
