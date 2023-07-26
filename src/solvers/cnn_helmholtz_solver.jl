@@ -64,12 +64,12 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
     println("========== In setMediumParameters ==========")
     println("omega --- $(param.omega)")
     println("h --- $(param.h)")
-    # println("FWI f --- $((Helmholtz_param.omega / 2pi))")
+    println("FWI omega --- $((Helmholtz_param.omega))")
     println("(n,m) --- ($(param.n),$(param.m))")
     println("============================================")
 
-    # param.kappa = a_float_type(slowness .* (Helmholtz_param.omega/(omega_exact*c))) # normalized slowness * w_fwi/w_exact
-    param.kappa = a_float_type(slowness ./ c) # normalized slowness [* w_fwi/w_exact]
+    param.kappa = a_float_type(slowness .* (Helmholtz_param.omega/(omega_exact*c))) # normalized slowness * w_fwi/w_exact
+    # param.kappa = a_float_type(slowness ./ c) # normalized slowness [* w_fwi/w_exact]
 
     param.kappa_features = Base.invokelatest(get_kappa_features, param)
 
