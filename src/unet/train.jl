@@ -71,7 +71,7 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
         #  # opt = RADAM(lr) # forgot to use this lr
          
         # end
-        if iteration > 0
+        if iteration > 90
             println("Training")
             Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
 
