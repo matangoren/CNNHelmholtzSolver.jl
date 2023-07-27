@@ -3,7 +3,7 @@ export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,set
 # model_name = "without_alpha"
 # model_name = "original_model_new_training_120_lr_1e-3"
 # model_name = "original_model_new_training_120_lr_1e-4"
-model_name = "original_model_new_training_90_lr_1e-4_20k_samples"
+model_name = "original_model_new_training_120_lr_1e-4_20k_samples"
 
 file_path = joinpath(pwd(), "results/$(model_name)_solver_info.csv")
 CSV.write(file_path, DataFrame(Cycle=[], FreqIndex=[], Omega=[], Iterations=[], Error=[]), delim=';') 
