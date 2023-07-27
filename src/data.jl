@@ -208,7 +208,7 @@ function generate_random_data!(test_name, data_set_m, n, m, h, kappa, omega, gam
         #     append!(dataset,[(input_t |> pu, e_t |> pu)])
         # end
     end
-    # just for now - return it to be just data_dirname later
+    
     return data_dirname
 end
 

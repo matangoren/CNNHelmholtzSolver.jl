@@ -23,7 +23,7 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
                                                 kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, 
                                                 kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=same_kappa, data_folder_type="test")                                           
     @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
-
+    
     if use_gpu == true
         println("after data generation GPU memory status $(CUDA.memory_status())")
     end
@@ -71,7 +71,7 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
         #  # opt = RADAM(lr) # forgot to use this lr
          
         # end
-        if iteration > 90
+        if iteration > 0
             println("Training")
             Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
 
