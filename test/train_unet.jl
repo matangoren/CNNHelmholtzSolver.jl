@@ -32,7 +32,7 @@ function test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_si
 
     # test_name = "test_16_FFSDNUnet_TFFKappa_TSResidualBlockI n=352 m=240 Neummann=true ABLpad=[20;20] gamma=attenuation norm_input=false mirror-padding same_kappa=false kappa=slowness squared=normalized linear (FWI format) h=with domain"
     # test_name = "new_352_240_model_4_layers_mse_loss"
-    test_name = "original_model_new_training_120_lr_1e-4"
+    test_name = "original_model_new_training_120_lr_1e-4_20k_samples"
 
     mkpath("models/$(test_name)")
     mkpath("models/$(test_name)/train_log")                                                                                                                                         
@@ -63,9 +63,9 @@ function test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_si
                                                         gamma_input=gamma_input, kernel=kernel, smaller_lr=smaller_lr, axb=axb, jac=false, norm_input=norm_input, model_type=model_type, k_type=k_type, k_chs=k_chs, indexes=indexes,
                                                         data_train_path=data_path, full_loss=full_loss, residual_loss=residual_loss, gmres_restrt=gmres_restrt,σ=σ, same_kappa=false, linear_kappa=true)
 
-    iter = range(1, length=Int64(iterations/4))
-    p = plot(iter, train_loss, label="Train loss")
-    plot!(iter, test_loss, label="Test loss")
+    iter = range(1, length=Int64(iterations/3))
+    p = plot(iter, test_loss, label="Test loss")
+    # plot!(iter, test_loss, label="Test loss")
     yaxis!("Loss", :log10)
     xlabel!("Iterations")
     savefig("models/$(test_name)/train_log/loss")
@@ -77,7 +77,7 @@ opt = RADAM(init_lr)
 train_size = 20000
 test_size = 1000
 batch_size = 16
-iterations = 120
+iterations = 90 # 120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
 blocks = 10

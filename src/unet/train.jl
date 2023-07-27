@@ -37,8 +37,8 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
         println("after data x_y GPU memory status $(CUDA.memory_status())")
     end
 
-    train_loss = zeros(Int64(iterations/4))|>cpu # not used for now
-    test_loss = zeros(Int64(iterations/4))|>cpu
+    train_loss = zeros(Int64(iterations/3))|>cpu # not used for now
+    test_loss = zeros(Int64(iterations/3))|>cpu
 
     CSV.write("models/$(test_name)/train_log/loss.csv", DataFrame(Train=[], Test=[]), delim = ';')
     
@@ -60,7 +60,8 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
             println("GPU memory status $(CUDA.memory_status())")
         end
         if mod(iteration,smaller_lr) == 0
-            lr = max(lr / 10, 1e-6)
+            # lr = max(lr / 10, 1e-6)
+            lr = lr / 2
             opt = RADAM(lr)
             smaller_lr = ceil(Int64,smaller_lr / 2)
             @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr)"
@@ -76,10 +77,10 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
 
             @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration))"    
 
-            if mod(iteration, 4) == 0 # just to save some run-time :)
-                test_loss[Int64(iteration/4)] = dataset_loss!(test_data_loader, loss!) / test_size
-                CSV.write("models/$(test_name)/train_log/loss.csv", DataFrame(Test=[test_loss[Int64(iteration/4)]]), delim = ';',append=true)
-                @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Test loss value = $(test_loss[Int64(iteration/4)])"       
+            if mod(iteration, 3) == 0 # just to save some run-time :)
+                test_loss[Int64(iteration/3)] = dataset_loss!(test_data_loader, loss!) / test_size
+                CSV.write("models/$(test_name)/train_log/loss.csv", DataFrame(Test=[test_loss[Int64(iteration/3)]]), delim = ';',append=true)
+                @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Test loss value = $(test_loss[Int64(iteration/3)])"       
             end
             
         

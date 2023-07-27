@@ -76,7 +76,7 @@ end
 
 
 function generate_r_e_batch(n, m, h, kappa, omega, gamma; 
-    e_vcycle_input=true, norm_input=false, v2_iter=10, level=3, axb=false, jac=false, gmres_restrt=1, blocks=1)
+    e_vcycle_input=false, norm_input=false, v2_iter=10, level=3, axb=false, jac=false, gmres_restrt=1, blocks=1)
 
     x_true = a_type(randn(c_type,n+1,m+1, 1, blocks)) # FIXED!!!
 

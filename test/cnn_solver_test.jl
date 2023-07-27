@@ -105,8 +105,8 @@ domain = [0, 13.5, 0, 4.2]
 solver_type = "VU"
 
 solver_2_6 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-4)
-n = 240
-m = 160
+n = 256
+m = 176
 helmholtz_param, rhs_2_6 = get_setup(n,m,domain)
 solver_2_6 = setMediumParameters(solver_2_6, helmholtz_param)
 
@@ -119,7 +119,7 @@ solver_3_9 = setMediumParameters(solver_3_9, helmholtz_param)
 
 println("solver for 2.6")
 result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, solver_2_6,0)|>cpu
-exit()
+
 println("solver for 3.9")
 result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,0)|>cpu
 plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
