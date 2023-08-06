@@ -50,7 +50,7 @@ function get_setup(n,m,domain; blocks=4)
     gamma .+= attenuation
 
     M = getRegularMesh(domain,[n;m])
-    M.h = h
+    M.h = r_type.([0.061363637, 0.028])
 
     rhs = get_rhs(n,m,h; blocks=blocks)
     return HelmholtzParam(M,Float64.(gamma),Float64.(medium),Float64(omega_exact),true,useSommerfeldBC), rhs
@@ -119,11 +119,11 @@ solver_3_9 = setMediumParameters(solver_3_9, helmholtz_param)
 
 println("solver for 2.6")
 result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, solver_2_6,0)|>cpu
-
+exit()
 println("solver for 3.9")
 result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,0)|>cpu
 # plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
-exit()
+
 solver_2_6 = retrain(1,1, solver_2_6;iterations=10, batch_size=16, initial_set_size=256, lr=1e-6)
 solver_3_9.model = solver_2_6.model
 
