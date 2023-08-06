@@ -23,7 +23,7 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
                                                 kappa_type=kappa_type, threshold=threshold, kappa_input=kappa_input, 
                                                 kappa_smooth=kappa_smooth, k_kernel=k_kernel, axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=same_kappa, data_folder_type="test")                                           
     @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
-    
+
     if use_gpu == true
         println("after data generation GPU memory status $(CUDA.memory_status())")
     end
@@ -66,12 +66,8 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
             smaller_lr = ceil(Int64,smaller_lr / 2)
             @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr)"
         end
-        # if iteration > 140
-        #  lr = 1e-6
-        #  # opt = RADAM(lr) # forgot to use this lr
-         
-        # end
-        if iteration > 90
+
+        if iteration > 0
             println("Training")
             Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
 
@@ -83,7 +79,6 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
                 @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Test loss value = $(test_loss[Int64(iteration/3)])"       
             end
             
-        
             if mod(iteration,10) == 0
                 model = model|>cpu
                 @save "models/$(test_name)/model.bson" model

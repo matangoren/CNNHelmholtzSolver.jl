@@ -123,7 +123,7 @@ result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, sol
 println("solver for 3.9")
 result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,0)|>cpu
 # plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
-
+exit()
 solver_2_6 = retrain(1,1, solver_2_6;iterations=10, batch_size=16, initial_set_size=256, lr=1e-6)
 solver_3_9.model = solver_2_6.model
 

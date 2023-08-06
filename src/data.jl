@@ -175,7 +175,7 @@ function generate_random_data!(test_name, data_set_m, n, m, h, kappa, omega, gam
     mkpath(data_dirname)
 
     for i = 1:data_set_m
-
+        
         if same_kappa == false
             kappa, c = get2DSlownessLinearModel(n,m; normalized=true)|>cgpu
         end
