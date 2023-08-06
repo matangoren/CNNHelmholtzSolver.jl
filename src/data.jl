@@ -147,7 +147,7 @@ function generate_retrain_random_data(data_set_m, n, m, h, kappa, omega, gamma;
         batch_size = length(part)
 
         r_vcycle_channels, e_true_channels = generate_r_e_batch(n, m, h, kappa, omega, gamma; e_vcycle_input=e_vcycle_input,
-                                                    v2_iter=v2_iter, level=level, axb=axb, jac=jac, blocks=batch_size)
+                                                    v2_iter=v2_iter, level=level, axb=axb, jac=jac, gmres_restrt=gmres_restrt, blocks=batch_size)
         
         if batch_size != blocks
             kappa_repeated = repeat(kappa.^2,1,1,1,batch_size)
@@ -182,7 +182,7 @@ function generate_random_data!(test_name, data_set_m, n, m, h, kappa, omega, gam
 
         # blocks has to be 1 - because kappa is different for each sample in the batch
         input, e_true_channels = generate_r_e_batch(n, m, h, kappa, omega, gamma; e_vcycle_input=e_vcycle_input,
-                                                    v2_iter=v2_iter, level=level, axb=axb, jac=jac, blocks=1)
+                                                    v2_iter=v2_iter, level=level, axb=axb, jac=jac, gmres_restrt=gmres_restrt, blocks=1)
 
         
         input = kappa_input == true ? cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), dims=3) : input
