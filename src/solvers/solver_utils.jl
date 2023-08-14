@@ -194,17 +194,11 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
     _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
     coefficient = r_type(minimum(h)^2)
     @info "$(Dates.format(now(), "HH:MM:SS")) - Start Re-Train for $(base_model_folder)\\$(new_model_name)"
-    println(set_size)
+
     X, Y = generate_retrain_random_data(set_size, n, m, h, kappa, omega, gamma;
                                         e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level, threshold=threshold,
                                         axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, blocks=blocks)
     
-    # train_set_path = generate_random_data!("check_retrain", set_size, n, m, h, kappa, omega, gamma;
-    #                                     e_vcycle_input=e_vcycle_input, v2_iter=v2_iter, level=level,
-    #                                     threshold=threshold,
-    #                                     axb=axb, jac=jac, norm_input=norm_input, gmres_restrt=gmres_restrt, same_kappa=true, data_folder_type="train")
-
-    # X, Y = get_data_x_y(train_set_path, set_size, n, m, gamma|>cpu)
     
     dataset = UnetDatasetFromArray(X,Y)
     @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
@@ -222,46 +216,53 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
     end
 
     opt = RADAM(lr)
-    data_loader = DataLoader(dataset, batchsize=batch_size, shuffle=true)
 
     for iteration in 1:iterations
         @info "$(Dates.format(now(), "HH:MM:SS")) - iteration #$(iteration)/$(iterations))"
-        # println("X size = $(size(dataset.X)) --- Y size = $(size(dataset.Y))")
+        println("X size = $(size(dataset.X)) --- Y size = $(size(dataset.Y))")
+        data_loader = DataLoader(dataset, batchsize=batch_size, shuffle=true)
 
         Flux.train!(loss!, Flux.params(model), data_loader, opt)
-        loss = dataset_loss!(data_loader, loss!) / set_size
+        loss = dataset_loss!(data_loader, loss!) / size(dataset.X,4)
         println("loss: $(loss)")
 
-        # rs_vector = a_float_type[]
-        # es_vector = a_float_type[]
-        # for (batch_r, batch_e) in data_loader
-        #     num_samples = size(batch_e,4)
+        if iteration == iterations
+            break
+        end
 
-        #     e_model = model(batch_r)
-        #     e_model = (e_model[:,:,1,:] + im*e_model[:,:,2,:]) # .* coefficient
+        @info "$(Dates.format(now(), "HH:MM:SS")) - Creating Data - iteration #$(iteration)/$(iterations))"
 
-        #     e_tilde,flag,err,counter,resvec = fgmres_func(A, vec((batch_r[:,:,1,:] + im*batch_r[:,:,2,:]) ./ coefficient), 3, tol=1e-4, maxIter=1,
-        #                                             M=SM, x=vec(e_model), out=-1,flexible=true)
+        rs_vector = a_float_type[]
+        es_vector = a_float_type[]
+        for (batch_r, batch_e) in data_loader
+            num_samples = size(batch_e,4)
+
+            e_model = model(batch_r)
+            e_model = (e_model[:,:,1,:] + im*e_model[:,:,2,:]) .* coefficient
+
+            e_model = reshape(e_model, n+1, m+1, 1, num_samples)
+            r_model = helmholtz_chain!(e_model, helmholtz_matrix; h=h)
+
+            r_residual =  reshape((batch_r[:,:,1,:] + im*batch_r[:,:,2,:]), n+1, m+1, 1, num_samples) - r_model
+            e_tilde,flag,err,counter,resvec = fgmres_func(A, vec(r_residual), 3, tol=1e-10, maxIter=1,
+                                                    M=SM, x=vec(zeros(c_type, size(e_model))|>gpu), out=-1,flexible=true)
             
-        #     e_tilde = reshape(e_tilde, n+1, m+1, 1, num_samples)
-        #     Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h) .* coefficient 
-        #     rs = copy(batch_r)
-        #     rs[:,:,1:2,:] -= complex_grid_to_channels!(Ae_tilde; blocks=num_samples)
-        #     e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples)
-        #     es = batch_e .+ e_tilde
+            e_tilde = reshape(e_tilde, n+1, m+1, 1, num_samples)
 
-        #     append!(rs_vector, [rs])
-        #     append!(es_vector, [es])
-        # end
-        # dataset.X, dataset.Y = cat(dataset.X,rs_vector..., dims=4), cat(dataset.Y,es_vector..., dims=4)
+            # Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h) #.* coefficient 
+            # rs = copy(batch_r)
+            # rs[:,:,1:2,:] -= complex_grid_to_channels!(Ae_tilde; blocks=num_samples)
+            e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples) ./ coefficient
+            e_model = complex_grid_to_channels!(e_model; blocks=num_samples) ./ coefficient
+            
+            es = e_model .+ e_tilde
+
+            append!(rs_vector, [copy(batch_r)])
+            append!(es_vector, [es])
+        end
+        dataset.X, dataset.Y = cat(dataset.X,rs_vector..., dims=4), cat(dataset.Y,es_vector..., dims=4)
 
     end
-
-    # mkpath(joinpath(@__DIR__, "../../models/$(base_model_folder)/retrain"))
-    # model = model|>cpu
-    # @save joinpath(@__DIR__, "../../models/$(base_model_folder)/retrain/$(new_model_name).bson") model
-    # @info "$(Dates.format(now(), "HH:MM:SS")) - Save Model $(new_model_name).bson"
-    # model = model|>cgpu
 
     return model
 end
