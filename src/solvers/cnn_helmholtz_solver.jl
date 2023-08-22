@@ -1,11 +1,8 @@
 export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setMediumParameters,setSolverType,retrain
 
-# model_name = "without_alpha"
-# model_name = "original_model_new_training_120_lr_1e-3"
-# model_name = "original_model_new_training_120_lr_1e-4"
-# model_name = "original_model_new_training_120_lr_1e-4_20k_samples"
-model_name = "new_model_3ResNet_150"
-# model_name = "model_9_8_120"
+
+# model_name = "new_model_3ResNet_150"
+model_name = "model_9_8_120"
 # model_name = "symmetric_4_level_120"
 # model_name = "new_model_4_level_180_1e-6"
 
