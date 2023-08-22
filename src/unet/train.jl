@@ -60,14 +60,13 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
             println("GPU memory status $(CUDA.memory_status())")
         end
         if mod(iteration,smaller_lr) == 0
-            # lr = max(lr / 10, 1e-6)
             lr = max(lr / 2, 1e-6)
             opt = RADAM(lr)
             smaller_lr = ceil(Int64,smaller_lr / 2)
             @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr)"
         end
 
-        if iteration > 90
+        if iteration > 120
             println("Training")
             Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
 
