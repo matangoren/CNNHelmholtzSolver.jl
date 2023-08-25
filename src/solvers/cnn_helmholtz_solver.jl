@@ -2,7 +2,8 @@ export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,set
 
 
 # model_name = "new_model_3ResNet_150"
-model_name = "model_9_8_120"
+# model_name = "model_9_8_120"
+model_name = "dataset_608X304"
 # model_name = "symmetric_4_level_120"
 # model_name = "new_model_4_level_180_1e-6"
 
@@ -64,7 +65,7 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
 
     param.omega = r_type((0.1*2*pi) / (maximum(param.h))) # omega_exact * c
     println("========== In setMediumParameters ==========")
-    println("omega --- $(param.omega)")
+    println("omega --- $(param.omega) --- f_exact --- $(omega_exact/2pi)")
     println("h --- $(param.h)")
     println("FWI omega --- $((Helmholtz_param.omega))")
     println("(n,m) --- ($(param.n),$(param.m))")
