@@ -16,7 +16,7 @@ else
     fgmres_func = KrylovMethods.fgmres
 end
 
-function test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_size, iterations;
+function test_train_unet!(model, n, m, h, opt, init_lr, train_size, test_size, batch_size, iterations;
                                     is_save=false, data_augmentetion=false, e_vcycle_input=false,
                                     kappa_type=1, threshold=50, kappa_input=true, kappa_smooth=false, k_kernel=3,
                                     gamma_input=true, kernel=(3,3), smaller_lr=10, v2_iter=10, level=3,
@@ -52,7 +52,7 @@ function test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_si
     write(file,"arch",arch)
     close(file);
     
-    model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)|>cgpu
+    # model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)|>cgpu
     
     model, train_loss, test_loss = train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
                                                         train_size, test_size, batch_size, iterations, init_lr;
@@ -75,7 +75,7 @@ opt = RADAM(init_lr)
 train_size = 20000
 test_size = 1000
 batch_size = 16
-iterations = 120
+iterations = 150 # 120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
 blocks = 10
@@ -85,14 +85,14 @@ m = 304
 domain = [0, 13.5, 0, 4.2]
 h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
 
-# model = create_model!(false, true, true; kernel=(3,3), type=FFSDNUnet, k_type=TFFKappa, resnet_type=TSResidualBlockI, k_chs=10, indexes=3, σ=elu, arch=2)|>cgpu
-# model = model |> cpu
-# println("after create")
-# @load joinpath(@__DIR__, "../models/new_model_3ResNet_120/model.bson") model
-# @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
-# model = model |> cgpu
+model = create_model!(false, true, true; kernel=(3,3), type=FFSDNUnet, k_type=TFFKappa, resnet_type=TSResidualBlockI, k_chs=10, indexes=3, σ=elu, arch=2)|>cgpu
+model = model |> cpu
+println("after create")
+@load joinpath(@__DIR__, "../models/dataset_608X304_120/model.bson") model
+@info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
+model = model |> cgpu
 
-test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_size, iterations;
+test_train_unet!(model, n, m, h, opt, init_lr, train_size, test_size, batch_size, iterations;
                     data_augmentetion = false,
                     e_vcycle_input = false,
                     kappa_type = 1,

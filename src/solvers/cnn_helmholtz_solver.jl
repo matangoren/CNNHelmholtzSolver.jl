@@ -3,7 +3,7 @@ export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,set
 
 # model_name = "new_model_3ResNet_150"
 # model_name = "model_9_8_120"
-model_name = "dataset_608X304"
+model_name = "dataset_608X304_130"
 # model_name = "symmetric_4_level_120"
 # model_name = "new_model_4_level_180_1e-6"
 
