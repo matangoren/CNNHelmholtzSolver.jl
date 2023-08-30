@@ -25,12 +25,12 @@ function test_train_unet!(model, n, m, h, opt, init_lr, train_size, test_size, b
     kappa, c = get2DSlownessLinearModel(n,m;normalized=true)|>cgpu
     omega = r_type((0.1*2*pi) / maximum(h)) # maxmial effective omega (we absorb c into omega) - hwk = hwc = hw'= 2pi/10
 
-    ABLpad = [20;20]
+    ABLpad = [36;36] # 32+4 [20;20] 16+4
     gamma = r_type.(getABL([n+1,m+1], true, ABLpad, Float64(omega)))|>cgpu
     attenuation = r_type(0.01*4*pi);
     gamma .+= attenuation
 
-    test_name = "dataset_608X304"
+    test_name = "dataset_608X304_gamma_36"
 
     mkpath("models/$(test_name)")
     mkpath("models/$(test_name)/train_log")                                                                                                                                         
@@ -75,7 +75,7 @@ opt = RADAM(init_lr)
 train_size = 20000
 test_size = 1000
 batch_size = 16
-iterations = 150 # 120
+iterations = 120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
 blocks = 10
@@ -88,7 +88,7 @@ h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
 model = create_model!(false, true, true; kernel=(3,3), type=FFSDNUnet, k_type=TFFKappa, resnet_type=TSResidualBlockI, k_chs=10, indexes=3, σ=elu, arch=2)|>cgpu
 model = model |> cpu
 println("after create")
-@load joinpath(@__DIR__, "../models/dataset_608X304_120/model.bson") model
+@load joinpath(@__DIR__, "../models/dataset_608X304_gamma_36_70/model.bson") model
 @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
 model = model |> cgpu
 

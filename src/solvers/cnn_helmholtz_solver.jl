@@ -1,11 +1,8 @@
 export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,setMediumParameters,setSolverType,retrain
 
 
-# model_name = "new_model_3ResNet_150"
 # model_name = "model_9_8_120"
-model_name = "dataset_608X304_130"
-# model_name = "symmetric_4_level_120"
-# model_name = "new_model_4_level_180_1e-6"
+model_name = "dataset_608X304_gamma_36_120"
 
 file_path = joinpath(pwd(), "results/$(model_name)_solver_info.csv")
 CSV.write(file_path, DataFrame(Cycle=[], FreqIndex=[], Omega=[], Iterations=[], Error=[]), delim=';') 
@@ -68,6 +65,7 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
     println("omega --- $(param.omega) --- f_exact --- $(omega_exact/2pi)")
     println("h --- $(param.h)")
     println("FWI omega --- $((Helmholtz_param.omega))")
+    println("omega exact --- $(omega_exact)")
     println("(n,m) --- ($(param.n),$(param.m))")
     println("============================================")
 
