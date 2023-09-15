@@ -16,7 +16,7 @@ else
     fgmres_func = KrylovMethods.fgmres
 end
 
-function test_train_unet!(model, n, m, h, opt, init_lr, train_size, test_size, batch_size, iterations;
+function test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_size, iterations;
                                     is_save=false, data_augmentetion=false, e_vcycle_input=false,
                                     kappa_type=1, threshold=50, kappa_input=true, kappa_smooth=false, k_kernel=3,
                                     gamma_input=true, kernel=(3,3), smaller_lr=10, v2_iter=10, level=3,
@@ -25,12 +25,12 @@ function test_train_unet!(model, n, m, h, opt, init_lr, train_size, test_size, b
     kappa, c = get2DSlownessLinearModel(n,m;normalized=true)|>cgpu
     omega = r_type((0.1*2*pi) / maximum(h)) # maxmial effective omega (we absorb c into omega) - hwk = hwc = hw'= 2pi/10
 
-    ABLpad = [36;36] # 32+4 [20;20] 16+4
+    ABLpad = [16;16]
     gamma = r_type.(getABL([n+1,m+1], true, ABLpad, Float64(omega)))|>cgpu
     attenuation = r_type(0.01*4*pi);
     gamma .+= attenuation
 
-    test_name = "dataset_608X304_gamma_36"
+    test_name = "dataset_608X304_gamma_16"
 
     mkpath("models/$(test_name)")
     mkpath("models/$(test_name)/train_log")                                                                                                                                         
@@ -52,7 +52,7 @@ function test_train_unet!(model, n, m, h, opt, init_lr, train_size, test_size, b
     write(file,"arch",arch)
     close(file);
     
-    # model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)|>cgpu
+    model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)|>cgpu
     
     model, train_loss, test_loss = train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
                                                         train_size, test_size, batch_size, iterations, init_lr;
@@ -85,14 +85,14 @@ m = 304
 domain = [0, 13.5, 0, 4.2]
 h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
 
-model = create_model!(false, true, true; kernel=(3,3), type=FFSDNUnet, k_type=TFFKappa, resnet_type=TSResidualBlockI, k_chs=10, indexes=3, σ=elu, arch=2)|>cgpu
-model = model |> cpu
-println("after create")
-@load joinpath(@__DIR__, "../models/dataset_608X304_gamma_36_70/model.bson") model
-@info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
-model = model |> cgpu
+# model = create_model!(false, true, true; kernel=(3,3), type=FFSDNUnet, k_type=TFFKappa, resnet_type=TSResidualBlockI, k_chs=10, indexes=3, σ=elu, arch=2)|>cgpu
+# model = model |> cpu
+# println("after create")
+# @load joinpath(@__DIR__, "../models/dataset_608X304_gamma_36_70/model.bson") model
+# @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
+# model = model |> cgpu
 
-test_train_unet!(model, n, m, h, opt, init_lr, train_size, test_size, batch_size, iterations;
+test_train_unet!(n, m, h, opt, init_lr, train_size, test_size, batch_size, iterations;
                     data_augmentetion = false,
                     e_vcycle_input = false,
                     kappa_type = 1,

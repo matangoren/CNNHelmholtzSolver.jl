@@ -212,7 +212,7 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             e_model = reshape(e_model, n+1, m+1, 1, num_samples)
             r_model = helmholtz_chain!(e_model, helmholtz_matrix; h=h)
 
-            r_residual =  reshape((batch_r[:,:,1,:] + im*batch_r[:,:,2,:]), n+1, m+1, 1, num_samples) - r_model
+            r_residual = reshape((batch_r[:,:,1,:] + im*batch_r[:,:,2,:]), n+1, m+1, 1, num_samples) - r_model
             e_tilde,flag,err,counter,resvec = fgmres_func(A, vec(r_residual), 3, tol=1e-10, maxIter=1,
                                                     M=SM, x=vec(zeros(c_type, size(e_model))|>gpu), out=-1,flexible=true)
             

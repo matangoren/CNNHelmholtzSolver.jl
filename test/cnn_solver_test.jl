@@ -7,7 +7,7 @@ include("../src/multigrid/helmholtz_methods.jl")
 include("../src/data.jl")
 
 include("../src/solvers/cnn_helmholtz_solver.jl")
-ENV["JULIA_CUDA_MEMORY_POOL"] = "none"
+# ENV["JULIA_CUDA_MEMORY_POOL"] = "none"
 
 useSommerfeldBC = true
 
@@ -32,10 +32,10 @@ function plot_results(filename, res, n, m)
 end
 
 function get_setup(n,m,domain, original_h, f_fwi, f_exact; blocks=4)
-    # h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
+    h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
     ratio = f_fwi / f_exact
     println("ratio: $(ratio)")
-    h = original_h ./ ratio
+    # h = original_h ./ ratio
     println("h: $(h)")
     kappa_i, c = get2DSlownessLinearModel(n,m;normalized=false)
     medium = kappa_i.^2
@@ -45,14 +45,14 @@ function get_setup(n,m,domain, original_h, f_fwi, f_exact; blocks=4)
     omega_fwi = r_type(2*pi*f_fwi)
     omega = omega_exact * c
     
-    ABLpad = 36
-    ABLamp = omega
+    ABLpad = 16
+    ABLamp = omega # f_exact*2*pi #omega
     gamma = r_type.(getABL([n+1,m+1],true,ones(Int64,2)*ABLpad,Float64(ABLamp)))
     attenuation = r_type(0.01*4*pi);
     gamma .+= attenuation
 
     M = getRegularMesh(domain,[n;m])
-    M.h = h
+    # M.h = h
 
     rhs = get_rhs(n,m,h; blocks=blocks)
     return HelmholtzParam(M,Float64.(gamma),Float64.(medium),Float64(omega_fwi),true,useSommerfeldBC), rhs
@@ -71,7 +71,6 @@ end
 # (288,144) --- 3.2000000890481126 -> 20
 # (256,128) --- 2.8444444224103345 -> 15
 
-
 domain = [0, 13.5, 0, 4.2]
 domain += [0, 64*(13.5/608), 0, 32*(4.2/304)]
 original_h = r_type.([13.5 / 608, 4.2/ 304])
@@ -82,16 +81,16 @@ println(domain)
 solver_type = "VU"
 
 solver_2_6 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-4)
-n = 512
-m = 256
-f = 4.0 # 4.977777815109077
+n = 256
+m = 128
+f = (16/42)*f_exact
 helmholtz_param, rhs_2_6 = get_setup(n,m,domain, original_h, f, f_exact; blocks=4)
 solver_2_6 = setMediumParameters(solver_2_6, helmholtz_param)
 
 
 solver_3_9 = copySolver(solver_2_6)
-n = 608
-m = 304
+n = 672
+m = 336
 f = f_exact
 helmholtz_param, rhs_3_9 = get_setup(n,m,domain, original_h, f, f_exact; blocks=4)
 solver_3_9 = setMediumParameters(solver_3_9, helmholtz_param)
@@ -101,10 +100,10 @@ result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, sol
 
 println("solver for 3.9")
 result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,0)|>cpu
-# plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
+plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 exit()
-solver_2_6 = retrain(1,1, solver_2_6;iterations=5, batch_size=16, initial_set_size=64, lr=1e-6)
-solver_3_9.model = solver_2_6.model
+# solver_2_6 = retrain(1,1, solver_2_6;iterations=5, batch_size=16, initial_set_size=64, lr=1e-6)
+# solver_3_9.model = solver_2_6.model
 
 println("solver for 2.6 - after retraining")
 result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, solver_2_6,0)|>cpu

@@ -66,7 +66,7 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
             @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr)"
         end
 
-        if iteration > 70
+        if iteration > 0
             println("Training")
             Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
 
