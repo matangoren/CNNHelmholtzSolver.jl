@@ -2,8 +2,8 @@ export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,set
 
 
 # model_name = "model_9_8_120"
-# model_name = "dataset_608X304_gamma_16_120"
-model_name = "dataset_608X304_gamma_36_120"
+model_name = "dataset_608X304_gamma_16_120"
+# model_name = "dataset_608X304_gamma_36_120"
 
 file_path = joinpath(pwd(), "results/$(model_name)_solver_info.csv")
 CSV.write(file_path, DataFrame(Cycle=[], FreqIndex=[], Omega=[], Iterations=[], Error=[]), delim=';') 

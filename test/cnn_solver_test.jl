@@ -46,7 +46,7 @@ function get_setup(n,m,domain, original_h, f_fwi, f_exact; blocks=4)
     omega = omega_exact * c
     
     ABLpad = 16
-    ABLamp = omega # f_exact*2*pi
+    ABLamp = omega
     gamma = r_type.(getABL([n+1,m+1],true,ones(Int64,2)*ABLpad,Float64(ABLamp)))
     attenuation = r_type(0.01*4*pi);
     gamma .+= attenuation
@@ -81,9 +81,9 @@ println(domain)
 solver_type = "VU"
 
 solver_2_6 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-4)
-n = 256
-m = 128
-f = (16/42)*f_exact
+n = 320
+m = 160
+f = (20/42)*f_exact
 helmholtz_param, rhs_2_6 = get_setup(n,m,domain, original_h, f, f_exact; blocks=4)
 solver_2_6 = setMediumParameters(solver_2_6, helmholtz_param)
 
