@@ -75,7 +75,7 @@ opt = RADAM(init_lr)
 train_size = 20000
 test_size = 1000
 batch_size = 16
-iterations = 150
+iterations = 120
 full_loss = false
 gmres_restrt = -1 # 1 -Default, 5 - 5GMRES, -1 Random
 blocks = 10
@@ -88,7 +88,7 @@ h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
 model = create_model!(false, true, true; kernel=(3,3), type=FFSDNUnet, k_type=TFFKappa, resnet_type=TSResidualBlockI, k_chs=10, indexes=3, σ=elu, arch=2)|>cgpu
 model = model |> cpu
 println("after create")
-@load joinpath(@__DIR__, "../models/dataset_608X304_gamma_16_120/model.bson") model
+@load joinpath(@__DIR__, "../models/dataset_608X304_gamma_16_ABLamp_1_90/model.bson") model
 @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
 model = model |> cgpu
 

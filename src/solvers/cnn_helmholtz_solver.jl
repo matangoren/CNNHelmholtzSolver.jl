@@ -2,8 +2,8 @@ export CnnHelmholtzSolver,getCnnHelmholtzSolver,solveLinearSystem,copySolver,set
 
 
 # model_name = "model_9_8_120"
-model_name = "dataset_608X304_gamma_16_120"
-# model_name = "dataset_608X304_gamma_36_120"
+model_name = "dataset_608X304_gamma_16_ABLamp_1_120"
+# model_name = "dataset_608X304_120"
 
 file_path = joinpath(pwd(), "results/$(model_name)_solver_info.csv")
 CSV.write(file_path, DataFrame(Cycle=[], FreqIndex=[], Omega=[], Iterations=[], Error=[]), delim=';') 
@@ -55,11 +55,14 @@ end
 function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::HelmholtzParam)    
     param.n, param.m = Helmholtz_param.Mesh.n
     param.h = (Helmholtz_param.Mesh.h)|>cgpu
-    param.gamma = a_float_type(reshape(Helmholtz_param.gamma,param.n+1,param.m+1))
     
     slowness = r_type.(reshape(sqrt.(Helmholtz_param.m),param.n+1,param.m+1)) # slowness (m from FWI is slowness squared)
     c = r_type(maximum(slowness))
     omega_exact = r_type((0.1*2*pi) / (c*maximum(param.h)))
+
+    attenuation = r_type(0.01*4*pi)
+    gamma = ((Helmholtz_param.gamma .- attenuation) .* c) .+ attenuation
+    param.gamma = a_float_type(reshape(gamma,param.n+1,param.m+1))
 
     param.omega = r_type((0.1*2*pi) / (maximum(param.h))) # omega_exact * c
     println("========== In setMediumParameters ==========")
@@ -71,7 +74,6 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
     println("============================================")
 
     param.kappa = a_float_type(slowness .* (Helmholtz_param.omega/(omega_exact*c))) # normalized slowness * w_fwi/w_exact
-    # param.kappa = a_float_type(slowness ./ c) # normalized slowness [* w_fwi/w_exact]
 
     param.kappa_features = Base.invokelatest(get_kappa_features, param)
 

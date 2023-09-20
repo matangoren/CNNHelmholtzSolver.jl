@@ -30,8 +30,13 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
 
     # train_set_x, train_set_y = get_data_x_y(train_set_path, train_size, n, m, gamma|>cpu)
     # test_set_x, test_set_y = get_data_x_y(test_set_path, test_size, n, m, gamma|>cpu)
-    train_dataset = UnetDatasetFromDirectory(train_set_path, train_size, gamma|>cpu)
-    test_dataset = UnetDatasetFromDirectory(test_set_path, test_size, gamma|>cpu)
+    ABLpad = [16;16]
+    gamma_net = r_type.(getABL([n+1,m+1], true, ABLpad, Float64(1.0)))
+    attenuation = r_type(0.01*4*pi);
+    gamma_net .+= attenuation
+
+    train_dataset = UnetDatasetFromDirectory(train_set_path, train_size, gamma_net|>cpu)
+    test_dataset = UnetDatasetFromDirectory(test_set_path, test_size, gamma_net|>cpu)
 
     if use_gpu == true
         println("after data x_y GPU memory status $(CUDA.memory_status())")
@@ -66,13 +71,13 @@ function train_residual_unet!(model, test_name, n, m, h, kappa, omega, gamma,
             @info "$(Dates.format(now(), "HH:MM:SS")) - Update Learning Rate $(lr)"
         end
 
-        if iteration > 120
+        if iteration > 90
             println("Training")
             Flux.train!(loss!, Flux.params(model), train_data_loader, opt)
 
             @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration))"    
 
-            if mod(iteration, 3) == 0 # just to save some run-time :)
+            if mod(iteration, 3) == 0
                 test_loss[Int64(iteration/3)] = dataset_loss!(test_data_loader, loss!) / test_size
                 CSV.write("models/$(test_name)/train_log/loss.csv", DataFrame(Test=[test_loss[Int64(iteration/3)]]), delim = ';',append=true)
                 @info "$(Dates.format(now(), "HH:MM:SS")) - $(iteration)) Test loss value = $(test_loss[Int64(iteration/3)])"       

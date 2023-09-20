@@ -87,7 +87,7 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
     function M_Unet(r)
         r = reshape(r, n+1, m+1, 1, blocks)
         rj = reshape(r, n+1, m+1, 1, blocks)
-        e = a_type(zeros(n+1, m+1, 1, blocks))
+        e = a_type(zeros(c_type, n+1, m+1, 1, blocks))
         # ej = zeros(c_type, n+1, m+1, 1, blocks)|>cgpu
 
         if solver_type["before_jacobi"] == true
@@ -96,17 +96,22 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
             rj = r - reshape(A(ej), n+1, m+1, 1, blocks) # I think the reshape is redundant here
         end
         
+        ABLpad = [16;16]
+        gamma_net = r_type.(getABL([n+1,m+1], true, ABLpad, Float64(1.0)))|>cgpu
+        attenuation = r_type(0.01*4*pi);
+        gamma_net .+= attenuation
+        
         if solver_type["unet"] == true
             for i=1:blocks  
                 input = complex_grid_to_channels!(reshape(rj[:,:,1,i],n+1,m+1,1,1); blocks=1)
                 if arch == 1
-                    input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma, n+1, m+1, 1, 1), kappa_features, dims=3)
+                    input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma_net, n+1, m+1, 1, 1), kappa_features, dims=3)
                     e_unet = model.solve_subnet(input)
                 elseif arch == 2
-                    input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma, n+1, m+1, 1, 1), dims=3)
+                    input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma_net, n+1, m+1, 1, 1), dims=3)
                     e_unet = model.solve_subnet(input, kappa_features)
                 else
-                    input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma, n+1, m+1, 1, 1), dims=3)
+                    input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma_net, n+1, m+1, 1, 1), dims=3)
                     e_unet = model(input)
                 end
                 e[:,:,1,i] .+= (e_unet[:,:,1,1] + im*e_unet[:,:,2,1]) .* coefficient

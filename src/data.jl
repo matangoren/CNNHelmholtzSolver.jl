@@ -137,12 +137,17 @@ function generate_retrain_random_data(data_set_m, n, m, h, kappa, omega, gamma;
     e_vcycle_input=false, v2_iter=10, level=3, threshold=50,
     axb=false, jac=false, norm_input=false, gmres_restrt=1, blocks=8)
 
+    ABLpad = [16;16]
+    gamma_net = r_type.(getABL([n+1,m+1], true, ABLpad, Float64(1.0)))|>cgpu
+    attenuation = r_type(0.01*4*pi);
+    gamma_net .+= attenuation
+
     data_r_vector = a_float_type[]
     data_e_vector = a_float_type[]
 
     batches_partitions = collect(Iterators.partition(1:data_set_m, blocks))
     kappa_repeated = repeat(kappa.^2,1,1,1,blocks)
-    gamma_repeated = repeat(gamma,1,1,1,blocks)
+    gamma_net_repeated = repeat(gamma_net,1,1,1,blocks)
     for part in batches_partitions
         batch_size = length(part)
 
@@ -151,10 +156,10 @@ function generate_retrain_random_data(data_set_m, n, m, h, kappa, omega, gamma;
         
         if batch_size != blocks
             kappa_repeated = repeat(kappa.^2,1,1,1,batch_size)
-            gamma_repeated = repeat(gamma,1,1,1,batch_size)
+            gamma_net_repeated = repeat(gamma_net,1,1,1,batch_size)
         end
 
-        append!(data_r_vector, [cat(r_vcycle_channels, kappa_repeated, gamma_repeated, dims=3)])
+        append!(data_r_vector, [cat(r_vcycle_channels, kappa_repeated, gamma_net_repeated, dims=3)])
         append!(data_e_vector, [e_true_channels])
     end
     
