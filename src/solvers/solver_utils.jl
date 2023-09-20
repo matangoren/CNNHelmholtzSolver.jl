@@ -215,26 +215,33 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             e_model = (e_model[:,:,1,:] + im*e_model[:,:,2,:]) .* coefficient
 
             e_model = reshape(e_model, n+1, m+1, 1, num_samples)
-            r_model = helmholtz_chain!(e_model, helmholtz_matrix; h=h)
-
+            r_model = helmholtz_chain!(e_model, helmholtz_matrix; h=h) 
+            # println("batch_r norm = $(norm(batch_r[:,:,1:2,:]))")
+            # println("batch_e norm = $(norm(batch_e[:,:,1:2,:]))")
+            # println("r_model norm = $(norm(r_model))")
+            # println("e_model norm = $(norm(e_model))")
             r_residual = reshape((batch_r[:,:,1,:] + im*batch_r[:,:,2,:]), n+1, m+1, 1, num_samples) - r_model
             e_tilde,flag,err,counter,resvec = fgmres_func(A, vec(r_residual), 3, tol=1e-10, maxIter=1,
                                                     M=SM, x=vec(zeros(c_type, size(e_model))|>gpu), out=-1,flexible=true)
             
             e_tilde = reshape(e_tilde, n+1, m+1, 1, num_samples)
-
+            # println("r_residual norm = $(norm(r_residual))")
+            # println("e_tilde norm = $(norm(e_tilde))")
             # Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h) #.* coefficient 
             # rs = copy(batch_r)
             # rs[:,:,1:2,:] -= complex_grid_to_channels!(Ae_tilde; blocks=num_samples)
             e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples) ./ coefficient
             e_model = complex_grid_to_channels!(e_model; blocks=num_samples) ./ coefficient
             
+            
             es = e_model .+ e_tilde
-
-            append!(rs_vector, [copy(batch_r)])
+            rs = copy(batch_r)
+            rs[:,:,1:2,:] += complex_grid_to_channels!(r_residual; blocks=num_samples)
+            append!(rs_vector, [rs])
             append!(es_vector, [es])
         end
-        dataset.X, dataset.Y = cat(dataset.X,rs_vector..., dims=4), cat(dataset.Y,es_vector..., dims=4)
+        # dataset.X, dataset.Y = cat(rs_vector..., dims=4), cat(es_vector..., dims=4)
+        dataset.X, dataset.Y = cat(dataset.X, rs_vector..., dims=4), cat(dataset.Y, es_vector..., dims=4)
 
     end
 

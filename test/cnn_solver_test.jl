@@ -37,8 +37,6 @@ function get_setup(n,m,domain, original_h, f_fwi, f_initial_grid; blocks=4)
     println("ratio: $(ratio)")
     # h = original_h ./ ratio
     println("h: $(h)")
-    new_medium = readdlm("FWI_(384, 256)_FC1_GN10.dat", '\t', Float64);
-    new_medium = new_medium[1:n+1,1:m+1]
     kappa_i, c = get2DSlownessLinearModel(n,m;normalized=false)
     medium = kappa_i.^2
     c = maximum(kappa_i)
@@ -104,7 +102,7 @@ println("solver for 3.9")
 result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,0)|>cpu
 # plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 
-solver_2_6 = retrain(1,1, solver_2_6;iterations=5, batch_size=16, initial_set_size=64, lr=1e-7)
+solver_2_6 = retrain(1,1, solver_2_6;iterations=5, batch_size=16, initial_set_size=64, lr=1e-6)
 solver_3_9.model = solver_2_6.model
 
 println("solver for 2.6 - after retraining")
