@@ -163,7 +163,7 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
                             set_size, batch_size, iterations, lr;
                             e_vcycle_input=false, v2_iter=10, level=3, threshold=50,
                             axb=false, jac=false, norm_input=false,
-                            gmres_restrt=1, σ=elu, blocks=8, relaxation_tol=1e-4)
+                            gmres_restrt=1, σ=elu, blocks=8, relaxation_tol=1e-4, data_epochs=5)
 
     _, helmholtz_matrix = get_helmholtz_matrices!(kappa, omega, gamma; alpha=r_type(0.5))
     coefficient = r_type(minimum(h)^2)
@@ -200,7 +200,7 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
         loss = dataset_loss!(data_loader, loss!) / size(dataset.X,4)
         println("loss: $(loss)")
 
-        if iteration >= 5
+        if iteration >= data_epochs
             continue
         end
 
@@ -220,6 +220,7 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             # println("batch_e norm = $(norm(batch_e[:,:,1:2,:]))")
             # println("r_model norm = $(norm(r_model))")
             # println("e_model norm = $(norm(e_model))")
+            e_model ./= coefficient
             r_residual = reshape((batch_r[:,:,1,:] + im*batch_r[:,:,2,:]), n+1, m+1, 1, num_samples) - r_model
             e_tilde,flag,err,counter,resvec = fgmres_func(A, vec(r_residual), 3, tol=1e-10, maxIter=1,
                                                     M=SM, x=vec(zeros(c_type, size(e_model))|>gpu), out=-1,flexible=true)
@@ -230,8 +231,8 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             # Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h) #.* coefficient 
             # rs = copy(batch_r)
             # rs[:,:,1:2,:] -= complex_grid_to_channels!(Ae_tilde; blocks=num_samples)
-            e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples) ./ coefficient
-            e_model = complex_grid_to_channels!(e_model; blocks=num_samples) ./ coefficient
+            e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples) #./ coefficient
+            e_model = complex_grid_to_channels!(e_model; blocks=num_samples) #./ coefficient
             
             
             es = e_model .+ e_tilde
