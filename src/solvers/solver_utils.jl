@@ -200,8 +200,8 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
         loss = dataset_loss!(data_loader, loss!) / size(dataset.X,4)
         println("loss: $(loss)")
 
-        if iteration == iterations
-            break
+        if iteration >= 5
+            continue
         end
 
         @info "$(Dates.format(now(), "HH:MM:SS")) - Creating Data - iteration #$(iteration)/$(iterations))"
@@ -235,9 +235,8 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             
             
             es = e_model .+ e_tilde
-            rs = copy(batch_r)
-            rs[:,:,1:2,:] += complex_grid_to_channels!(r_residual; blocks=num_samples)
-            append!(rs_vector, [rs])
+
+            append!(rs_vector, [copy(batch_r)])
             append!(es_vector, [es])
         end
         # dataset.X, dataset.Y = cat(rs_vector..., dims=4), cat(es_vector..., dims=4)
