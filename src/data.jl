@@ -26,7 +26,7 @@ function generate_vcycle!(n, m, h, kappa, omega, gamma::a_float_type, b::a_type;
 
     x0 = a_type(zeros(n+1,m+1,1,blocks))
     if restrt == -1
-        restrt = rand(5:10)
+        restrt = rand(1:10)
     end
     x_vcycle, = fgmres_func(A, vec(b), restrt, tol=1e-10, maxIter=1, M=M, x=vec(x0), out=-1, flexible=true)
     x_vcycle_channels = complex_grid_to_channels!(reshape(x_vcycle,n+1,m+1,1,blocks), blocks=blocks)
