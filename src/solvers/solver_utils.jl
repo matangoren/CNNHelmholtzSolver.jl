@@ -151,10 +151,10 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
     # normalize r with L-infinity and x accordingly
     # r_inf_norm = norm(r_vcycle, Inf)
     # println("inf norm = $(r_inf_norm)")
-    # factor = c_type(0.1 / r_inf_norm)
+    # factor = c_type(1000 / r_inf_norm)
     # r_vcycle = r_vcycle .* factor
     # x3 = x3 .* factor
-    println("after refactoring norm = $(norm(r_vcycle, Inf))")
+    # println("after refactoring norm = $(norm(r_vcycle, Inf))")
     x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=solver_tol, maxIter=max_iter,
                                                             M=M_Unet, x=vec(x3), out=1,flexible=true)
     

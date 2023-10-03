@@ -120,14 +120,14 @@ function setModel(model, param::CnnHelmholtzSolver)
 end
 
 # cycle and index - just for identifying the current retraining phase
-function retrain(cycle::Int, index::Int, param::CnnHelmholtzSolver; iterations=4, batch_size=16, initial_set_size=32, lr=1e-5)
+function retrain(cycle::Int, index::Int, param::CnnHelmholtzSolver; iterations=4, batch_size=16, initial_set_size=32, lr=1e-5, data_epochs=5)
     println("In retrain - cycle=$(cycle) freqIndex=$(index)")
     param.cycle = cycle
     param.freqIndex = index
     new_model_name = "retrain_model_cycle=$(cycle)_freqIndex=$(index)"
     
     param.model = retrain_model(param.model, model_name, new_model_name, param.n, param.m, param.h,
-                                param.kappa, param.omega, param.gamma, initial_set_size, batch_size, iterations, lr; gmres_restrt=-1, relaxation_tol=param.relaxation_tol)
+                                param.kappa, param.omega, param.gamma, initial_set_size, batch_size, iterations, lr; gmres_restrt=-1, relaxation_tol=param.relaxation_tol, data_epochs=data_epochs)
 
     return param
 end
