@@ -28,6 +28,7 @@ function generate_vcycle!(n, m, h, kappa, omega, gamma::a_float_type, b::a_type;
     if restrt == -1
         restrt = rand(1:10)
     end
+    println("restrt = $(restrt)")
     x_vcycle, = fgmres_func(A, vec(b), restrt, tol=1e-10, maxIter=1, M=M, x=vec(x0), out=-1, flexible=true)
     x_vcycle_channels = complex_grid_to_channels!(reshape(x_vcycle,n+1,m+1,1,blocks), blocks=blocks)
     return x_vcycle, x_vcycle_channels
@@ -89,8 +90,11 @@ function generate_r_e_batch(n, m, h, kappa, omega, gamma;
         # Generate r,e
         r_vcycle, e_true = generate_r_vcycle!(n, m, h, kappa, omega, gamma, x_true;restrt=gmres_restrt, jac=jac, blocks=blocks)
     end
-
+    println("size of r_vcycle = $(size(r_vcycle)) norm = $(norm(r_vcycle, Inf))")
     r_vcycle = r_type(minimum(h)^2) .* r_vcycle
+    println("size of r_vcycle = $(size(r_vcycle)) norm = $(norm(r_vcycle, Inf))")
+    println()
+
     # check with normalization
     if norm_input == true
         norms_r = mapslices(norm, r_vcycle, dims=[1,2,3])

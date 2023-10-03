@@ -37,9 +37,19 @@ function get_setup(n,m,domain, original_h, f_fwi, f_initial_grid; blocks=4)
     println("ratio: $(ratio)")
     # h = original_h ./ ratio
     println("h: $(h)")
+    
+
     kappa_i, c = get2DSlownessLinearModel(n,m;normalized=false)
     medium = kappa_i.^2
     c = maximum(kappa_i)
+    
+    # medium = readdlm("FWI_(672, 336)_mtrue.dat", '\t', Float64);
+    # medium = medium[1:n+1,1:m+1]
+    # kappa_i = sqrt.(medium)
+    # heatmap(kappa_i, color=:blues)
+    # savefig("kappa_$(n)_$(m)")
+    # c = maximum(kappa_i)
+    
     
     omega_exact = r_type((0.1*2*pi) / (c*maximum(h)))
     omega_fwi = r_type(2*pi*f_fwi)
@@ -84,15 +94,15 @@ solver_2_6 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-4)
 n = 256
 m = 128
 f_fwi = (16/42)*f_initial_grid
-helmholtz_param, rhs_2_6 = get_setup(n,m,domain, original_h, f_fwi, f_initial_grid; blocks=4)
+helmholtz_param, rhs_2_6 = get_setup(n,m,domain, original_h, f_fwi, f_initial_grid; blocks=1)
 solver_2_6 = setMediumParameters(solver_2_6, helmholtz_param)
 
 
 solver_3_9 = copySolver(solver_2_6)
-n = 288
-m = 144
-f_fwi = (18/42)*f_initial_grid
-helmholtz_param, rhs_3_9 = get_setup(n,m,domain, original_h, f_fwi, f_initial_grid; blocks=4)
+n = 672
+m = 336
+f_fwi = (42/42)*f_initial_grid
+helmholtz_param, rhs_3_9 = get_setup(n,m,domain, original_h, f_fwi, f_initial_grid; blocks=1)
 solver_3_9 = setMediumParameters(solver_3_9, helmholtz_param)
 
 println("solver for 2.6")
@@ -102,7 +112,9 @@ println("solver for 3.9")
 result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,0)|>cpu
 # plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 
-solver_2_6 = retrain(1,1, solver_2_6;iterations=10, batch_size=16, initial_set_size=64, lr=1e-6)
+exit()
+
+solver_2_6 = retrain(1,1, solver_2_6;iterations=25, batch_size=16, initial_set_size=64, lr=1e-6)
 solver_3_9.model = solver_2_6.model
 
 println("solver for 2.6 - after retraining")

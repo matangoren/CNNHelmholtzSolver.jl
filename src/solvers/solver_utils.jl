@@ -148,9 +148,18 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
                                                     M=SM, x=vec(x_init), out=-1,flexible=true)
     println("In CNN solve - number of iterations=$(iter3) err1=$(err3)")
 
+    # normalize r with L-infinity and x accordingly
+    # r_inf_norm = norm(r_vcycle, Inf)
+    # println("inf norm = $(r_inf_norm)")
+    # factor = c_type(0.1 / r_inf_norm)
+    # r_vcycle = r_vcycle .* factor
+    # x3 = x3 .* factor
+    println("after refactoring norm = $(norm(r_vcycle, Inf))")
     x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=solver_tol, maxIter=max_iter,
                                                             M=M_Unet, x=vec(x3), out=1,flexible=true)
     
+    # x1*inf_norm
+    # x1 = x1 ./ factor
     CSV.write(file_path, DataFrame(Cycle=[param.cycle], FreqIndex=[param.freqIndex], Omega=[omega], Iterations=[iter1], Error=[err1]), delim=';', append=true) 
     
     println("In CNN solve - number of iterations=$(iter1) err1=$(err1)")
@@ -184,7 +193,7 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
     A(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, Int64(prod(size(v)) / ((n+1)*(m+1)))), helmholtz_matrix; h=h))
     function SM(r)
         bs = Int64(prod(size(r)) / ((n+1)*(m+1)))
-        e_vcycle = a_type(zeros(n+1,m+1,1,bs))
+        e_vcycle = a_type(zeros(c_type,n+1,m+1,1,bs))
         e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,bs), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=bs, tol=relaxation_tol)
         return vec(e_vcycle)
     end
@@ -223,9 +232,13 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             # println("e_model norm = $(norm(e_model))")
             # e_model ./= coefficient
             # r_residual = reshape((batch_r[:,:,1,:] + im*batch_r[:,:,2,:]), n+1, m+1, 1, num_samples) - r_model
-
+            
             r = (batch_r[:,:,1,:] + im*batch_r[:,:,2,:]) ./ coefficient
-            e_tilde,flag,err,counter,resvec = fgmres_func(A, vec(r), 3, tol=1e-10, maxIter=1,
+            println(typeof(r))
+            println(typeof(e_model))
+            println()
+
+            e_tilde,flag,err,counter,resvec = fgmres_func(A, vec(r), 1, tol=1e-10, maxIter=1,
                                                     M=SM, x=vec(e_model|>gpu), out=-1,flexible=true)
             
             e_tilde = reshape(e_tilde, n+1, m+1, 1, num_samples)
@@ -236,14 +249,20 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             # Ae_tilde = helmholtz_chain!(e_tilde, helmholtz_matrix; h=h) #.* coefficient 
             # rs = copy(batch_r)
             # rs[:,:,1:2,:] -= complex_grid_to_channels!(Ae_tilde; blocks=num_samples)
-            e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples) #./ coefficient
             # e_model = complex_grid_to_channels!(e_model; blocks=num_samples) #./ coefficient
             
             # es = e_model .+ e_tilde
             new_r = copy(batch_r)
+            norms_r = mapslices(norm, r_tilde, dims=[1,2,3])
+            r_tilde = r_tilde ./ norms_r
+            e_tilde = e_tilde ./ norms_r
+
             new_r[:,:,1:2,:] = complex_grid_to_channels!(r_tilde; blocks=num_samples)
+            e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples)
+            
+
             append!(rs_vector, [new_r])
-            append!(es_vector, [copy(batch_e)])
+            append!(es_vector, [e_tilde])
         end
         # dataset.X, dataset.Y = cat(rs_vector..., dims=4), cat(es_vector..., dims=4)
         dataset.X, dataset.Y = cat(dataset.X, rs_vector..., dims=4), cat(dataset.Y, es_vector..., dims=4)
