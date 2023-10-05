@@ -1,7 +1,6 @@
 include("test_intro.jl")
 
 include("../src/unet/model.jl")
-include("test_utils.jl")
 include("../src/gpu_krylov.jl")
 include("../src/multigrid/helmholtz_methods.jl")
 include("../src/data.jl")
@@ -10,6 +9,44 @@ include("../src/solvers/cnn_helmholtz_solver.jl")
 # ENV["JULIA_CUDA_MEMORY_POOL"] = "none"
 
 useSommerfeldBC = true
+
+function expandModelNearest(m,n,ntarget)
+    if length(size(m))==2
+        mnew = zeros(Float64,ntarget[1],ntarget[2]);
+        for j=1:ntarget[2]
+            for i=1:ntarget[1]
+                jorig = convert(Int64,ceil((j/ntarget[2])*n[2]));
+                iorig = convert(Int64,ceil((i/ntarget[1])*n[1]));
+                mnew[i,j] = m[iorig,jorig];
+            end
+        end
+    elseif length(size(m))==3
+        mnew = zeros(Float64,ntarget[1],ntarget[2],ntarget[3]);
+        for k=1:ntarget[3]
+            for j=1:ntarget[2]
+                for i=1:ntarget[1]
+                    korig = convert(Int64,floor((k/ntarget[3])*n[3]));
+                    jorig = convert(Int64,floor((j/ntarget[2])*n[2]));
+                    iorig = convert(Int64,floor((i/ntarget[1])*n[1]));
+                    mnew[i,j,k] = m[iorig,jorig,korig];
+                end
+            end
+        end
+    end
+    return mnew
+end
+
+function get_seg_model(n,m; doTranspose=true)
+    newSize = [n+1, m+1]
+    medium = readdlm("SEGmodel2Dsalt.dat");
+    medium = medium*1e-3;
+    if doTranspose
+        medium = medium';
+    end
+    medium = expandModelNearest(medium,   collect(size(medium)),newSize);
+
+    return r_type.(medium) # m is velocity model
+end
 
 function get_rhs(n, m, h; blocks=2)
     rhs = zeros(ComplexF64,n+1,m+1,1,1)
@@ -31,26 +68,25 @@ function plot_results(filename, res, n, m)
     savefig(filename)
 end
 
-function get_setup(n,m,domain, original_h, f_fwi, f_initial_grid; blocks=4)
+function get_setup(n,m,domain, original_h, f_fwi; blocks=4, kappa_type="linear")
     h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
-    ratio = f_fwi / f_initial_grid
-    println("ratio: $(ratio)")
-    # h = original_h ./ ratio
-    println("h: $(h)")
-    
+    # ratio = f_fwi / f_initial_grid
+    # h = original_h ./ ratio    
 
-    kappa_i, c = get2DSlownessLinearModel(n,m;normalized=false)
-    medium = kappa_i.^2
+    if kappa_type == "seg"
+        seg_model = get_seg_model(n,m) # velocity model
+        kappa_i = velocityToSlowness(seg_model)
+        medium = kappa_i.^2
+        figure()
+        imshow(kappa_i', clim = [0.0,1.0],cmap = "Blues"); colorbar();
+        savefig("m.png")
+        close()
+    else # default linear kappa
+        kappa_i, _ = get2DSlownessLinearModel(n,m;normalized=false)
+        medium = kappa_i.^2
+    end
+    
     c = maximum(kappa_i)
-    
-    # medium = readdlm("FWI_(672, 336)_mtrue.dat", '\t', Float64);
-    # medium = medium[1:n+1,1:m+1]
-    # kappa_i = sqrt.(medium)
-    # heatmap(kappa_i, color=:blues)
-    # savefig("kappa_$(n)_$(m)")
-    # c = maximum(kappa_i)
-    
-    
     omega_exact = r_type((0.1*2*pi) / (c*maximum(h)))
     omega_fwi = r_type(2*pi*f_fwi)
     omega = omega_exact * c
@@ -62,7 +98,6 @@ function get_setup(n,m,domain, original_h, f_fwi, f_initial_grid; blocks=4)
     gamma .+= attenuation
 
     M = getRegularMesh(domain,[n;m])
-    # M.h = h
 
     rhs = get_rhs(n,m,h; blocks=blocks)
     return HelmholtzParam(M,Float64.(gamma),Float64.(medium),Float64(omega_fwi),true,useSommerfeldBC), rhs
@@ -83,48 +118,43 @@ end
 
 domain = [0, 13.5, 0, 4.2]
 domain += [0, 64*(13.5/608), 0, 32*(4.2/304)]
+
 original_h = r_type.([13.5 / 608, 4.2/ 304])
 f_initial_grid = 6.7555555411700405
-println(original_h)
-println(domain)
+
 
 solver_type = "VU"
 
-solver_2_6 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-4)
-n = 256
-m = 128
-f_fwi = (16/42)*f_initial_grid
-helmholtz_param, rhs_2_6 = get_setup(n,m,domain, original_h, f_fwi, f_initial_grid; blocks=1)
-solver_2_6 = setMediumParameters(solver_2_6, helmholtz_param)
+# solver_2_6 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-4)
+# n = 256
+# m = 128
+# f_fwi = (16/42)*f_initial_grid
+# helmholtz_param, rhs_2_6 = get_setup(n,m,domain, original_h, f_fwi; blocks=1)
+# solver_2_6 = setMediumParameters(solver_2_6, helmholtz_param)
 
 
-solver_3_9 = copySolver(solver_2_6)
-n = 672
-m = 336
-f_fwi = (42/42)*f_initial_grid
-helmholtz_param, rhs_3_9 = get_setup(n,m,domain, original_h, f_fwi, f_initial_grid; blocks=1)
+solver_3_9 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-4) # copySolver(solver_2_6)
+n = 320
+m = 160
+f_fwi = (20/42)*f_initial_grid
+helmholtz_param, rhs_3_9 = get_setup(n,m,domain, original_h, f_fwi; blocks=1, kappa_type="linear")
 solver_3_9 = setMediumParameters(solver_3_9, helmholtz_param)
 
-println("solver for 2.6")
-result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, solver_2_6,0)|>cpu
+# println("solver for 2.6")
+# result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, solver_2_6,0)|>cpu
 
 println("solver for 3.9")
 result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,0)|>cpu
 # plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 
-exit()
+# exit()
 
-solver_2_6 = retrain(1,1, solver_2_6;iterations=25, batch_size=16, initial_set_size=64, lr=1e-6)
-solver_3_9.model = solver_2_6.model
+solver_3_9 = retrain(1,1, solver_3_9;iterations=25, batch_size=16, initial_set_size=64, lr=1e-6, data_epochs=5)
+# solver_3_9.model = solver_2_6.model
 
-println("solver for 2.6 - after retraining")
-result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, solver_2_6,0)|>cpu
+# println("solver for 2.6 - after retraining")
+# result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, solver_2_6,0)|>cpu
 
 
 println("solver for 3.9 - after retraining")
 result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,0)|>cpu
-
-# new_medium = readdlm("FWI_(384, 256)_FC1_GN10.dat", '\t', Float64);
-# new_medium = new_medium[1:n+1,1:m+1]
-# println(size(new_medium))
-# Helmholtz_param = HelmholtzParam(M,Float64.(gamma),Float64.(new_medium),Float64(omega_fwi),true,useSommerfeldBC)

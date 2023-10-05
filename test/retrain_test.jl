@@ -1,55 +1,50 @@
-include("test_intro.jl")
+using DelimitedFiles
+using PyPlot
 
-include("../src/unet/model.jl")
-include("test_utils.jl")
-include("../src/gpu_krylov.jl")
-include("../src/multigrid/helmholtz_methods.jl")
-include("../src/data.jl")
+function expandModelNearest(m,n,ntarget)
+    if length(size(m))==2
+        mnew = zeros(Float64,ntarget[1],ntarget[2]);
+        for j=1:ntarget[2]
+            for i=1:ntarget[1]
+                jorig = convert(Int64,ceil((j/ntarget[2])*n[2]));
+                iorig = convert(Int64,ceil((i/ntarget[1])*n[1]));
+                mnew[i,j] = m[iorig,jorig];
+            end
+        end
+    elseif length(size(m))==3
+        mnew = zeros(Float64,ntarget[1],ntarget[2],ntarget[3]);
+        for k=1:ntarget[3]
+            for j=1:ntarget[2]
+                for i=1:ntarget[1]
+                    korig = convert(Int64,floor((k/ntarget[3])*n[3]));
+                    jorig = convert(Int64,floor((j/ntarget[2])*n[2]));
+                    iorig = convert(Int64,floor((i/ntarget[1])*n[1]));
+                    mnew[i,j,k] = m[iorig,jorig,korig];
+                end
+            end
+        end
+    end
+    return mnew
+end
 
-include("../src/solvers/cnn_helmholtz_solver.jl")
+filename = "SEGmodel2Dsalt.dat"
+doTranspose = true
 
+n = 608
+m = 304
+newSize = [n+1, m+1]
 
-# setup
-n = 352
-m = 240
-domain = [0, 13.5, 0, 4.2]
-h = r_type.([(domain[2]-domain[1])./ n, (domain[4]-domain[3])./ m])
+m = readdlm(filename);
+m = m*1e-3;
 
-# generating kappa
-kappa_i, c = get2DSlownessLinearModel(n,m;normalized=false)
-medium = kappa_i.^2
-c = maximum(kappa_i)
+if doTranspose
+    m = m';
+end
 
-omega_exact = r_type((0.1*2*pi) / (c*maximum(h)))
-f_fwi = 3.9 
-omega_fwi = r_type(2*pi*f_fwi)
+m    = expandModelNearest(m,   collect(size(m)),newSize);
 
-println("c=$(c) - h=$(h)")
-println("omega_exact = $(omega_exact) f_exact = $(omega_exact/2pi)")
-println("omega = $(omega_fwi) f_fwi = $(f_fwi)")
-
-
-kappa = (kappa_i .* (omega_fwi/(omega_exact*c)))
-omega = omega_exact * c
-
-ABLpad = 20
-ABLamp = omega
-gamma = r_type.(getABL([n+1,m+1],true,ones(Int64,2)*ABLpad,Float64(ABLamp)))
-attenuation = r_type(0.01*4*pi);
-gamma .+= attenuation
-
-# set_size = augment_size = 48
-# rs, es = generate_retrain_random_data(set_size, augment_size, n, m, h, kappa|>gpu, omega, gamma|>gpu; gmres_restrt=-1, blocks=16);
-
-M = getRegularMesh(domain,[n;m])
-M.h = h
-useSommerfeldBC = true
-Helmholtz_param = HelmholtzParam(M,Float64.(gamma),Float64.(medium),Float64(omega_fwi),true,useSommerfeldBC)
-
-solver_type = "VU"
-
-solver = getCnnHelmholtzSolver(solver_type; solver_tol=1e-4)
-solver = setMediumParameters(solver, Helmholtz_param)
-
-solver = retrain(1,1,solver)
-
+println(size(m))
+figure()
+imshow(m', clim = [1.5,4.5],cmap = "jet"); colorbar();
+savefig("m.png")
+close()

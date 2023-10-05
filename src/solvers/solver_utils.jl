@@ -93,7 +93,7 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
         if solver_type["before_jacobi"] == true
             e = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
             # ej = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
-            rj = r - reshape(A(ej), n+1, m+1, 1, blocks) # I think the reshape is redundant here
+            rj = r - reshape(A(e), n+1, m+1, 1, blocks) # I think the reshape is redundant here
         end
         
         ABLpad = [16;16]
@@ -198,6 +198,8 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
         return vec(e_vcycle)
     end
 
+    norm_Inf(x) = norm(x, Inf)
+
     opt = RADAM(lr)
 
     for iteration in 1:iterations
@@ -234,9 +236,6 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             # r_residual = reshape((batch_r[:,:,1,:] + im*batch_r[:,:,2,:]), n+1, m+1, 1, num_samples) - r_model
             
             r = (batch_r[:,:,1,:] + im*batch_r[:,:,2,:]) ./ coefficient
-            println(typeof(r))
-            println(typeof(e_model))
-            println()
 
             e_tilde,flag,err,counter,resvec = fgmres_func(A, vec(r), 1, tol=1e-10, maxIter=1,
                                                     M=SM, x=vec(e_model|>gpu), out=-1,flexible=true)
@@ -253,7 +252,7 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             
             # es = e_model .+ e_tilde
             new_r = copy(batch_r)
-            norms_r = mapslices(norm, r_tilde, dims=[1,2,3])
+            norms_r = mapslices(norm_Inf, r_tilde, dims=[1,2,3])
             r_tilde = r_tilde ./ norms_r
             e_tilde = e_tilde ./ norms_r
 

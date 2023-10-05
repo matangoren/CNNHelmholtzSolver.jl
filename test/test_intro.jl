@@ -10,7 +10,8 @@ using Distributions: Normal
 using BSON
 using BSON: @load
 using BSON: @save
-using Plots
+# using Plots
+using PyPlot
 using Dates
 using CSV, DataFrames
 using Random

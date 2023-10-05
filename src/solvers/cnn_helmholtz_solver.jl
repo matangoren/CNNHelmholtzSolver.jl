@@ -64,7 +64,7 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
     gamma = ((Helmholtz_param.gamma .- attenuation) .* c) .+ attenuation
     param.gamma = a_float_type(reshape(gamma,param.n+1,param.m+1))
 
-    param.omega = r_type((0.1*2*pi) / (maximum(param.h))) # omega_exact * c
+    param.omega = omega_exact * c
     println("========== In setMediumParameters ==========")
     println("omega --- $(param.omega) --- f_exact --- $(omega_exact/2pi)")
     println("h --- $(param.h)")

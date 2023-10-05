@@ -1,7 +1,5 @@
 using CSV, DataFrames
 using Distributions: Uniform
-using Plots
-using DelimitedFiles
 
 # x ← FGMRES(A=Helmholtz, M=V-Cycle, b, x = 0, maxIter = 1)
 function generate_vcycle!(n, m, h, kappa, omega, gamma::a_float_type, b::a_type; v2_iter=10, level=3, restrt=1, blocks=1)
@@ -28,7 +26,7 @@ function generate_vcycle!(n, m, h, kappa, omega, gamma::a_float_type, b::a_type;
     if restrt == -1
         restrt = rand(1:10)
     end
-    println("restrt = $(restrt)")
+
     x_vcycle, = fgmres_func(A, vec(b), restrt, tol=1e-10, maxIter=1, M=M, x=vec(x0), out=-1, flexible=true)
     x_vcycle_channels = complex_grid_to_channels!(reshape(x_vcycle,n+1,m+1,1,blocks), blocks=blocks)
     return x_vcycle, x_vcycle_channels
@@ -90,10 +88,8 @@ function generate_r_e_batch(n, m, h, kappa, omega, gamma;
         # Generate r,e
         r_vcycle, e_true = generate_r_vcycle!(n, m, h, kappa, omega, gamma, x_true;restrt=gmres_restrt, jac=jac, blocks=blocks)
     end
-    println("size of r_vcycle = $(size(r_vcycle)) norm = $(norm(r_vcycle, Inf))")
+    
     r_vcycle = r_type(minimum(h)^2) .* r_vcycle
-    println("size of r_vcycle = $(size(r_vcycle)) norm = $(norm(r_vcycle, Inf))")
-    println()
 
     # check with normalization
     if norm_input == true
@@ -252,7 +248,7 @@ end
 
 function get2DSlownessLinearModel(n::Int, m::Int; mref_file="", top_lb=1.65, top_ub=1.75, bottom_lb=2.5, bottom_ub=3.5, absorbing_val=1.5, normalized=false)
     velocity_model = get2DVelocityLinearModel(n,m)
-    slowness_model = r_type.(1.0./(velocity_model.+1e-16))
+    slowness_model = velocityToSlowness(velocity_model)
 
     c = r_type(1.0)
     if normalized
@@ -262,5 +258,6 @@ function get2DSlownessLinearModel(n::Int, m::Int; mref_file="", top_lb=1.65, top
     return slowness_model, c
 end
 
-velocityToSlowSquared(v::Array) = (1.0./(v.+1e-16)).^2
+velocityToSlownessSquared(v::Array) = r_type.(1.0./(v.+1e-16)).^2
+velocityToSlowness(v::Array) = r_type.(1.0./(v.+1e-16))
 
