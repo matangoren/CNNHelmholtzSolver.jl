@@ -6,7 +6,7 @@ model_name = "dataset_608X304_gamma_16_ABLamp_1_120"
 # model_name = "dataset_608X304_120"
 
 file_path = joinpath(pwd(), "results/$(model_name)_solver_info.csv")
-CSV.write(file_path, DataFrame(Cycle=[], FreqIndex=[], Omega=[], Iterations=[], Error=[], Time=[]), delim=';') 
+CSV.write(file_path, DataFrame(Cycle=[], FreqIndex=[], Omega=[], Iterations=[], Error=[], Time=[], FromFunction=[]), delim=';') 
 
 mutable struct CnnHelmholtzSolver<: AbstractSolver
     solver_type::Dict
@@ -26,6 +26,7 @@ mutable struct CnnHelmholtzSolver<: AbstractSolver
     relaxation_tol
     cycle
     freqIndex
+    fromFunction
 end
 
 include("../unet/model.jl")
@@ -36,14 +37,14 @@ function getCnnHelmholtzSolver(solver_name; n=128, m=128,h=[], kappa=[], omega=[
     if model == []
         model, model_parameters = setupSolver()
     end
-    return CnnHelmholtzSolver(get_solver_type(solver_name), n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,-1,-1)
+    return CnnHelmholtzSolver(get_solver_type(solver_name), n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,-1,-1, "getData")
 end
 
 function getCnnHelmholtzSolver(solver_type::Dict; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100, solver_tol=1e-4, relaxation_tol=1e-8)
     if model == []
         model, model_parameters = setupSolver()
     end
-    return CnnHelmholtzSolver(solver_type, n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,-1,-1)
+    return CnnHelmholtzSolver(solver_type, n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,-1,-1, "getData")
 end
 
 # need only B - the rhs of the linear equation. The rest of the computations is done by the CNN model.
