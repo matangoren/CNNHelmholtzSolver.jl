@@ -155,12 +155,14 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
     # r_vcycle = r_vcycle .* factor
     # x3 = x3 .* factor
     # println("after refactoring norm = $(norm(r_vcycle, Inf))")
+    start_time = time_ns()
     x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=solver_tol, maxIter=max_iter,
                                                             M=M_Unet, x=vec(x3), out=1,flexible=true)
     
+    end_time = time_ns()
     # x1*inf_norm
     # x1 = x1 ./ factor
-    CSV.write(file_path, DataFrame(Cycle=[param.cycle], FreqIndex=[param.freqIndex], Omega=[omega], Iterations=[iter1], Error=[err1]), delim=';', append=true) 
+    CSV.write(file_path, DataFrame(Cycle=[param.cycle], FreqIndex=[param.freqIndex], Omega=[omega], Iterations=[iter1], Error=[err1], Time=[(end_time-start_time)/1e9]), delim=';', append=true) 
     
     println("In CNN solve - number of iterations=$(iter1) err1=$(err1)")
     return reshape(x1,(n+1)*(m+1),blocks)|>pu

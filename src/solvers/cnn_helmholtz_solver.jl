@@ -6,7 +6,7 @@ model_name = "dataset_608X304_gamma_16_ABLamp_1_120"
 # model_name = "dataset_608X304_120"
 
 file_path = joinpath(pwd(), "results/$(model_name)_solver_info.csv")
-CSV.write(file_path, DataFrame(Cycle=[], FreqIndex=[], Omega=[], Iterations=[], Error=[]), delim=';') 
+CSV.write(file_path, DataFrame(Cycle=[], FreqIndex=[], Omega=[], Iterations=[], Error=[], Time=[]), delim=';') 
 
 mutable struct CnnHelmholtzSolver<: AbstractSolver
     solver_type::Dict
@@ -79,6 +79,7 @@ function setMediumParameters(param::CnnHelmholtzSolver, Helmholtz_param::Helmhol
 
     return param
 end
+
 
 function setSolverType(solver_name::String, param::CnnHelmholtzSolver)
     param.solver_type = get_solver_type(solver_name)

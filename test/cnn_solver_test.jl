@@ -39,6 +39,7 @@ end
 function get_seg_model(n,m; doTranspose=true)
     newSize = [n+1, m+1]
     medium = readdlm("SEGmodel2Dsalt.dat");
+    # medium = readdlm("SEGmodel2Dsalt.dat");
     medium = medium*1e-3;
     if doTranspose
         medium = medium';
@@ -133,13 +134,13 @@ solver_type = "VU"
 # solver_2_6 = setMediumParameters(solver_2_6, helmholtz_param)
 
 
-solver_3_9 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-4) # copySolver(solver_2_6)
+solver_3_9 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-6) # copySolver(solver_2_6)
 n = 320
 m = 160
 f_fwi = (20/42)*f_initial_grid
 helmholtz_param, rhs_3_9 = get_setup(n,m,domain, original_h, f_fwi; blocks=1, kappa_type="linear")
 solver_3_9 = setMediumParameters(solver_3_9, helmholtz_param)
-
+solver_3_9.solver_tol = 1e-8
 # println("solver for 2.6")
 # result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, solver_2_6,0)|>cpu
 
@@ -147,11 +148,12 @@ println("solver for 3.9")
 result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,0)|>cpu
 # plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 
-# exit()
 
+start_time = time_ns()
 solver_3_9 = retrain(1,1, solver_3_9;iterations=25, batch_size=16, initial_set_size=64, lr=1e-6, data_epochs=5)
 # solver_3_9.model = solver_2_6.model
-
+end_time = time_ns()
+println("time took for retrain: $((end_time-start_time)/1e9)")
 # println("solver for 2.6 - after retraining")
 # result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, solver_2_6,0)|>cpu
 
