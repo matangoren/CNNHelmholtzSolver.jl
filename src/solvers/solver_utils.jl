@@ -170,7 +170,7 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
 end
 
 
-function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa, omega, gamma,
+function retrain_model(param, model, base_model_folder, new_model_name, n, m, h, kappa, omega, gamma,
                             set_size, batch_size, iterations, lr;
                             e_vcycle_input=false, v2_iter=10, level=3, threshold=50,
                             axb=false, jac=false, norm_input=false,
@@ -188,7 +188,9 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
     dataset = UnetDatasetFromArray(X,Y)
     @info "$(Dates.format(now(), "HH:MM:SS")) - Generated Data"
 
-
+    solver_type = Dict("before_jacobi"=>false, "unet"=>true, "after_jacobi"=>false, "after_vcycle"=>true)
+    kappa_features = param.kappa_features
+    arch = 2
     loss!(x, y) = error_loss!(model, x, y)
     loss!(tuple) = loss!(tuple[1], tuple[2])
     
@@ -198,6 +200,50 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
         e_vcycle = a_type(zeros(c_type,n+1,m+1,1,bs))
         e_vcycle, = v_cycle_helmholtz!(n, m, h, e_vcycle, reshape(r,n+1,m+1,1,bs), kappa, omega, gamma; v2_iter = v2_iter, level=3, blocks=bs, tol=relaxation_tol)
         return vec(e_vcycle)
+    end
+
+    function M_Unet(r)
+        bs = Int64(prod(size(r)) / ((n+1)*(m+1)))
+        r = reshape(r, n+1, m+1, 1, bs)
+        rj = reshape(r, n+1, m+1, 1, bs)
+        e = a_type(zeros(c_type, n+1, m+1, 1, bs))
+        # ej = zeros(c_type, n+1, m+1, 1, blocks)|>cgpu
+
+        if solver_type["before_jacobi"] == true
+            e = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
+            # ej = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
+            rj = r - reshape(A(e), n+1, m+1, 1, bs) # I think the reshape is redundant here
+        end
+        
+        ABLpad = [16;16]
+        gamma_net = r_type.(getABL([n+1,m+1], true, ABLpad, Float64(1.0)))|>cgpu
+        attenuation = r_type(0.01*4*pi);
+        gamma_net .+= attenuation
+        
+        if solver_type["unet"] == true
+            for i=1:bs  
+                input = complex_grid_to_channels!(reshape(rj[:,:,1,i],n+1,m+1,1,1); blocks=1)
+                if arch == 1
+                    input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma_net, n+1, m+1, 1, 1), kappa_features, dims=3)
+                    e_unet = model.solve_subnet(input)
+                elseif arch == 2
+                    input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma_net, n+1, m+1, 1, 1), dims=3)
+                    e_unet = model.solve_subnet(input, kappa_features)
+                else
+                    input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma_net, n+1, m+1, 1, 1), dims=3)
+                    e_unet = model(input)
+                end
+                e[:,:,1,i] .+= (e_unet[:,:,1,1] + im*e_unet[:,:,2,1]) .* coefficient
+            end
+        end
+        
+        if solver_type["after_jacobi"] == true
+            e = jacobi_helmholtz_method!(n, m, h, e, r, helmholtz_matrix)
+        elseif solver_type["after_vcycle"] == true
+            e, = v_cycle_helmholtz!(n, m, h, e, r, kappa, omega, gamma; v2_iter = v2_iter, level = level, blocks=bs)
+        end
+
+        return vec(e)
     end
 
     norm_Inf(x) = norm(x, Inf)
@@ -215,6 +261,15 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
 
         if iteration >= data_epochs
             continue
+        end
+
+        if iteration == 10
+            lr = 1e-5
+            opt = RADAM(lr)
+        end
+        if iteration == 20
+            lr = 1e-6
+            opt = RADAM(lr)
         end
 
         @info "$(Dates.format(now(), "HH:MM:SS")) - Creating Data - iteration #$(iteration)/$(iterations))"
@@ -256,9 +311,9 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             
             
 
-            # norms_r = mapslices(norm_Inf, r_tilde, dims=[1,2,3]) # very slow on GPU
-            # r_tilde = r_tilde ./ norms_r
-            # e_tilde = e_tilde ./ norms_r
+            norms_r = mapslices(norm_Inf, r_tilde, dims=[1,2,3]) # very slow on GPU
+            r_tilde = r_tilde ./ norms_r
+            e_tilde = e_tilde ./ norms_r
 
             r_tilde = complex_grid_to_channels!(r_tilde; blocks=num_samples)
             e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples)

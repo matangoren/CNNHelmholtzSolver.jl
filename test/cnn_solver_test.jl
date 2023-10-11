@@ -136,11 +136,11 @@ solver_type = "VU"
 # solver_2_6 = setMediumParameters(solver_2_6, helmholtz_param)
 
 
-solver_3_9 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-6) # copySolver(solver_2_6)
-n = 320
-m = 160
-f_fwi = (20/42)*f_initial_grid
-helmholtz_param, rhs_3_9 = get_setup(n,m,domain, original_h, f_fwi; blocks=1, kappa_file="FWI_(672, 336)_FC1_GN19.dat")
+solver_3_9 = getCnnHelmholtzSolver(solver_type; solver_tol=1e-8) # copySolver(solver_2_6)
+n = 256
+m = 128
+f_fwi = (16/42)*f_initial_grid
+helmholtz_param, rhs_3_9 = get_setup(n,m,domain, original_h, f_fwi; blocks=1, kappa_file="FWI_(672, 336)_FC1_GN20.dat")
 solver_3_9 = setMediumParameters(solver_3_9, helmholtz_param)
 
 # solver_3_9.solver_tol = 1e-8
@@ -152,7 +152,7 @@ result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, sol
 # plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 
 start_time = time_ns()
-solver_3_9 = retrain(1,1, solver_3_9;iterations=25, batch_size=16, initial_set_size=1024, lr=1e-6, data_epochs=1)
+solver_3_9 = retrain(1,1, solver_3_9;iterations=30, batch_size=16, initial_set_size=128, lr=1e-4, data_epochs=4)
 # solver_3_9.model = solver_2_6.model
 end_time = time_ns()
 println("time took for retrain: $((end_time-start_time)/1e9)")
