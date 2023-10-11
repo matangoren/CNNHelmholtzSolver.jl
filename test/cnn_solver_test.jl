@@ -152,7 +152,7 @@ result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, sol
 # plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
 
 start_time = time_ns()
-solver_3_9 = retrain(1,1, solver_3_9;iterations=30, batch_size=16, initial_set_size=128, lr=1e-4, data_epochs=4)
+solver_3_9 = retrain(1,1, solver_3_9;iterations=30, batch_size=16, initial_set_size=64, lr=1e-4, data_epochs=5)
 # solver_3_9.model = solver_2_6.model
 end_time = time_ns()
 println("time took for retrain: $((end_time-start_time)/1e9)")
