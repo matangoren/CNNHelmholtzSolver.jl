@@ -253,19 +253,23 @@ function retrain_model(model, base_model_folder, new_model_name, n, m, h, kappa,
             # e_model = complex_grid_to_channels!(e_model; blocks=num_samples) #./ coefficient
             
             # es = e_model .+ e_tilde
-            new_r = copy(batch_r)
-            norms_r = mapslices(norm_Inf, r_tilde, dims=[1,2,3])
-            r_tilde = r_tilde ./ norms_r
-            e_tilde = e_tilde ./ norms_r
+            
+            
 
-            new_r[:,:,1:2,:] = complex_grid_to_channels!(r_tilde; blocks=num_samples)
+            # norms_r = mapslices(norm_Inf, r_tilde, dims=[1,2,3]) # very slow on GPU
+            # r_tilde = r_tilde ./ norms_r
+            # e_tilde = e_tilde ./ norms_r
+
+            r_tilde = complex_grid_to_channels!(r_tilde; blocks=num_samples)
             e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples)
+
+            new_r = copy(batch_r)
+            new_r[:,:,1:2,:] = r_tilde
             
 
             append!(rs_vector, [new_r])
             append!(es_vector, [e_tilde])
         end
-        # dataset.X, dataset.Y = cat(rs_vector..., dims=4), cat(es_vector..., dims=4)
         dataset.X, dataset.Y = cat(dataset.X, rs_vector..., dims=4), cat(dataset.Y, es_vector..., dims=4)
 
     end
