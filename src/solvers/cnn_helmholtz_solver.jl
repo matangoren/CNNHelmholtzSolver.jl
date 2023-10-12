@@ -97,10 +97,12 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
     B = B|>cgpu
     res = Base.invokelatest(solve, param, B, 10, 30)
     B = B|>pu
+    res = res |> pu
     if doTranspose == 1
         # negate the imaginary part of res
         res = real(res) - im*imag(res)
     end
+    
     return res, param
 end
 

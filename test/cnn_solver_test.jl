@@ -148,9 +148,13 @@ solver_3_9 = setMediumParameters(solver_3_9, helmholtz_param)
 # result, solver_2_6 = solveLinearSystem(sparse(ones(size(rhs_2_6))), rhs_2_6, solver_2_6,0)|>cpu
 
 println("solver for 3.9")
-result, solver_3_9 = solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,0)|>cpu
-# plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
+result, solver_3_9 = @time solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,1)|>cpu
 
+print("SECOND v")
+result, solver_3_9 = @time solveLinearSystem(sparse(ones(size(rhs_3_9))), rhs_3_9, solver_3_9,1)|>cpu
+
+# plot_results("test_16_cnn_solver_point_source_result_$(solver_type)", result, n ,m)
+exit()
 start_time = time_ns()
 solver_3_9 = retrain(1,1, solver_3_9;iterations=30, batch_size=16, initial_set_size=64, lr=1e-4, data_epochs=5)
 # solver_3_9.model = solver_2_6.model

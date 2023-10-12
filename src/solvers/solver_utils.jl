@@ -165,7 +165,7 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
     CSV.write(file_path, DataFrame(Cycle=[param.cycle], FreqIndex=[param.freqIndex], Omega=[omega], Iterations=[iter1], Error=[err1], Time=[(end_time-start_time)/1e9], FromFunction=[param.fromFunction]), delim=';', append=true) 
     
     println("In CNN solve - number of iterations=$(iter1) err1=$(err1)")
-    return reshape(x1,(n+1)*(m+1),blocks)|>pu
+    return reshape(x1,(n+1)*(m+1),blocks)
     
 end
 
