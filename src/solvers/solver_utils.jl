@@ -37,8 +37,8 @@ function setupSolver()
     model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
     model = model|>cpu
     println("after create")
-    @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model
-    # @load joinpath(@__DIR__, "../../test/models/FWI_(672, 336)_Cyc2_FC8_GN15.bson") model
+    # @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model
+    @load joinpath(@__DIR__, "../../test/models/gn1/retrain_model_cycle=2_freqIndex=5.bson") model
     @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
     
     return model|>cgpu, DICT
@@ -258,13 +258,9 @@ function retrain_model(param, base_model_folder, new_model_name, n, m, h, kappa,
         if iteration >= data_epochs
             continue
         end
-
-        if iteration == 10
-            lr = 1e-5
-            opt = RADAM(lr)
-        end
-        if iteration == 20
-            lr = 1e-6
+        
+        if mod(iteration, 10) == 0
+            lr = max(lr / 10, 1e-6)
             opt = RADAM(lr)
         end
 
