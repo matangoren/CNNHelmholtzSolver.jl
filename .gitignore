@@ -2,7 +2,7 @@
 *.jl.*.cov
 *.jl.mem
 deps/deps.jl
-*.dat
+# *.dat
 *.out
 Ns*
 *.mat
