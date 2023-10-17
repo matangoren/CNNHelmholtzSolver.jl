@@ -27,24 +27,25 @@ mutable struct CnnHelmholtzSolver<: AbstractSolver
     cycle
     freqIndex
     fromFunction
+    inTesting
 end
 
 include("../unet/model.jl")
 include("../data.jl")
 include("solver_utils.jl")
 
-function getCnnHelmholtzSolver(solver_name; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100, solver_tol=1e-4, relaxation_tol=1e-8)
+function getCnnHelmholtzSolver(solver_name; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100, solver_tol=1e-4, relaxation_tol=1e-8, inTesting=false)
     if model == []
         model, model_parameters = setupSolver()
     end
-    return CnnHelmholtzSolver(get_solver_type(solver_name), n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,-1,-1, "getData")
+    return CnnHelmholtzSolver(get_solver_type(solver_name), n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,-1,-1, "getData", inTesting)
 end
 
-function getCnnHelmholtzSolver(solver_type::Dict; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100, solver_tol=1e-4, relaxation_tol=1e-8)
+function getCnnHelmholtzSolver(solver_type::Dict; n=128, m=128,h=[], kappa=[], omega=[], gamma=[], model=[], model_parameters=Dict(), kappa_features=[], tuning_size=100, tuning_iterations=100, solver_tol=1e-4, relaxation_tol=1e-8, inTesting=false)
     if model == []
         model, model_parameters = setupSolver()
     end
-    return CnnHelmholtzSolver(solver_type, n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,-1,-1, "getData")
+    return CnnHelmholtzSolver(solver_type, n, m, h, kappa, omega, gamma, model, model_parameters, kappa_features, tuning_size, tuning_iterations, 0, solver_tol, relaxation_tol,-1,-1, "getData", inTesting)
 end
 
 # need only B - the rhs of the linear equation. The rest of the computations is done by the CNN model.
@@ -96,6 +97,9 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
     end
     B = B|>cgpu
     res = Base.invokelatest(solve, param, B, 10, 30)
+    if param.inTesting
+        return res
+    end        
     B = B|>pu
     if doTranspose == 1
         # negate the imaginary part of res
@@ -107,13 +111,11 @@ end
 import jInv.LinearSolvers.clear!;
 function clear!(param::CnnHelmholtzSolver)
     println("--- In CNNHelmholtzSolver clear! ---")
-    # param.model = []
-    # param.model_parameters = Dict()
 end
 
 import jInv.LinearSolvers.copySolver;
 function copySolver(param::CnnHelmholtzSolver)
-    return getCnnHelmholtzSolver(param.solver_type; n=param.n, m=param.m, h=param.h, kappa=param.kappa, omega=param.omega, gamma=param.gamma ,model=param.model, model_parameters=param.model_parameters, kappa_features=param.kappa_features, solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol) 
+    return getCnnHelmholtzSolver(param.solver_type; n=param.n, m=param.m, h=param.h, kappa=param.kappa, omega=param.omega, gamma=param.gamma ,model=param.model, model_parameters=param.model_parameters, kappa_features=param.kappa_features, solver_tol=param.solver_tol, relaxation_tol=param.relaxation_tol, inTesting=param.inTesting) 
 end
 
 function setModel(model, param::CnnHelmholtzSolver)
@@ -128,7 +130,7 @@ function retrain(cycle::Int, index::Int, param::CnnHelmholtzSolver; iterations=4
     param.freqIndex = index
     new_model_name = "retrain_model_cycle=$(cycle)_freqIndex=$(index)"
     
-    param.model = retrain_model(param, param.model, model_name, new_model_name, param.n, param.m, param.h,
+    retrain_model(param, model_name, new_model_name, param.n, param.m, param.h,
                                 param.kappa, param.omega, param.gamma, initial_set_size, batch_size, iterations, lr; gmres_restrt=-1, relaxation_tol=param.relaxation_tol, data_epochs=data_epochs)
 
     return param
