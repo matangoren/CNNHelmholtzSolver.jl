@@ -101,10 +101,12 @@ function solveLinearSystem!(A::SparseMatrixCSC,B,X,param::CnnHelmholtzSolver,doT
         return res
     end        
     B = B|>pu
+
     if doTranspose == 1
         # negate the imaginary part of res
         res = real(res) - im*imag(res)
     end
+    
     return res, param
 end
 
