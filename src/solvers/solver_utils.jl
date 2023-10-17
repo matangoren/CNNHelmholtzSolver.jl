@@ -37,8 +37,8 @@ function setupSolver()
     model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
     model = model|>cpu
     println("after create")
-    # @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model
-    @load joinpath(@__DIR__, "../../test/models/FWI_(672, 336)_Cyc2_FC8_GN15.bson") model
+    @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model
+    # @load joinpath(@__DIR__, "../../test/models/FWI_(672, 336)_Cyc2_FC8_GN15.bson") model
     @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
     
     return model|>cgpu, DICT
