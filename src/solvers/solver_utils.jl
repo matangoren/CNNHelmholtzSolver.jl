@@ -325,5 +325,8 @@ function retrain_model(param, base_model_folder, new_model_name, n, m, h, kappa,
 
     end
 
+    model = param.model|>cpu
+    @save joinpath(pwd(), "models/$(new_model_name).bson") model
+
     # return model
 end

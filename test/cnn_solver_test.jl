@@ -32,12 +32,13 @@ domain += [0, 64*(13.5/608), 0, 32*(4.2/304)]
 # original_h = r_type.([13.5 / 608, 4.2/ 304])
 f_initial_grid = 6.7555555411700405
 
-kappa_file = "FWI_(672, 336)_Cyc2_FC7_GN15"
+filename = "FWI_(672, 336)_Cyc2_FC8_GN15"
+kappa_file = joinpath(@__DIR__, "files/$(filename).dat")
 
-n = 28*16
+n = 16*16
 m = Int64(n//2)
-f_fwi = (28/42)*f_initial_grid
-helmholtz_param, rhs = get_setup(n,m,domain, f_fwi; blocks=4, kappa_file="$(kappa_file).dat") # default linear velocity model
+f_fwi = (16/42)*f_initial_grid
+helmholtz_param, rhs = get_setup(n,m,domain, f_fwi; blocks=4, kappa_file=kappa_file) # default linear velocity model
 
 solver_name = "VU"
 solver_vu = getCnnHelmholtzSolver(solver_name; solver_tol=1e-4, inTesting=true)
@@ -45,24 +46,22 @@ solver_vu = setMediumParameters(solver_vu, helmholtz_param)
 # solve
 println("===== solving for $(solver_name) =====")
 result_vu, vu_history = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver_vu,0)
-exit()
 
-solver_name = "V"
-solver_v = copySolver(solver_vu)
-solver_v = setSolverType(solver_name, solver_v)
-# solve
-println("===== solving for $(solver_name) =====")
-result_v, v_history = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver_v,0)
+# solver_name = "V"
+# solver_v = copySolver(solver_vu)
+# solver_v = setSolverType(solver_name, solver_v)
+# # solve
+# println("===== solving for $(solver_name) =====")
+# result_v, v_history = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver_v,0)
 
 start_time = time_ns()
-solver_vu = retrain(1,1, solver_vu;iterations=30, batch_size=16, initial_set_size=64, lr=1e-6, data_epochs=5)
+solver_vu = retrain(1,1, solver_vu;iterations=10, batch_size=16, initial_set_size=64, lr=1e-6, data_epochs=5)
 
 end_time = time_ns()
 println("time took for retrain: $((end_time-start_time)/1e9)")
 
-
 println("===== solving for $(solver_name) - after retraining =====")
 result_vu, vu_history_retraining = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver_vu,0)
 
-test_name = "$(kappa_file) convergence initial test"
-VU_V_graph("$(test_name) n=$(n) m=$(m) axb=true",[vu_history', v_history', vu_history_retraining'], ["VU", "V", "VU-retraining"], ["blue", "green", "orange"])
+# test_name = "$(filename) convergence initial test"
+# VU_V_graph("$(test_name) n=$(n) m=$(m) axb=true",[vu_history', v_history', vu_history_retraining'], ["VU", "V", "VU-retraining"], ["blue", "green", "orange"])
