@@ -37,7 +37,8 @@ function setupSolver()
     model = create_model!(e_vcycle_input, kappa_input, gamma_input; kernel=kernel, type=model_type, k_type=k_type, resnet_type=resnet_type, k_chs=k_chs, indexes=indexes, σ=σ, arch=arch)
     model = model|>cpu
     println("after create")
-    @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model
+    # @load joinpath(@__DIR__, "../../models/$(model_name)/model.bson") model
+    @load joinpath(@__DIR__, "../../test/models/FWI_(672, 336)_Cyc2_FC8_GN15.bson") model
     @info "$(Dates.format(now(), "HH:MM:SS.sss")) - Load Model"
     
     return model|>cgpu, DICT
@@ -148,29 +149,24 @@ function solve(param::CnnHelmholtzSolver, r_vcycle, restrt, max_iter; v2_iter=10
                                                     M=SM, x=vec(x_init), out=-1,flexible=true)
     println("In CNN solve - number of iterations=$(iter3) err1=$(err3)")
 
-    # normalize r with L-infinity and x accordingly
-    # r_inf_norm = norm(r_vcycle, Inf)
-    # println("inf norm = $(r_inf_norm)")
-    # factor = c_type(1000 / r_inf_norm)
-    # r_vcycle = r_vcycle .* factor
-    # x3 = x3 .* factor
-    # println("after refactoring norm = $(norm(r_vcycle, Inf))")
     start_time = time_ns()
     x1,flag1,err1,iter1,resvec1 =@time fgmres_func(A, vec(r_vcycle), restrt, tol=solver_tol, maxIter=max_iter,
                                                             M=M_Unet, x=vec(x3), out=1,flexible=true)
-    
     end_time = time_ns()
-    # x1*inf_norm
-    # x1 = x1 ./ factor
-    CSV.write(file_path, DataFrame(Cycle=[param.cycle], FreqIndex=[param.freqIndex], Omega=[omega], Iterations=[iter1], Error=[err1], Time=[(end_time-start_time)/1e9], FromFunction=[param.fromFunction]), delim=';', append=true) 
     
+    CSV.write(file_path, DataFrame(Cycle=[param.cycle], FreqIndex=[param.freqIndex], Omega=[omega], Iterations=[iter1], Error=[err1], Time=[(end_time-start_time)/1e9], FromFunction=[param.fromFunction]), delim=';', append=true) 
     println("In CNN solve - number of iterations=$(iter1) err1=$(err1)")
+    
+    if param.inTesting
+        return reshape(x1,(n+1)*(m+1),blocks)|>pu, cat([resvec3[end]],resvec1, dims=1)
+    end
+
     return reshape(x1,(n+1)*(m+1),blocks)|>pu
     
 end
 
 
-function retrain_model(param, model, base_model_folder, new_model_name, n, m, h, kappa, omega, gamma,
+function retrain_model(param, base_model_folder, new_model_name, n, m, h, kappa, omega, gamma,
                             set_size, batch_size, iterations, lr;
                             e_vcycle_input=false, v2_iter=10, level=3, threshold=50,
                             axb=false, jac=false, norm_input=false,
@@ -191,7 +187,7 @@ function retrain_model(param, model, base_model_folder, new_model_name, n, m, h,
     solver_type = Dict("before_jacobi"=>false, "unet"=>true, "after_jacobi"=>false, "after_vcycle"=>true)
     kappa_features = param.kappa_features
     arch = 2
-    loss!(x, y) = error_loss!(model, x, y)
+    loss!(x, y) = error_loss!(param.model, x, y)
     loss!(tuple) = loss!(tuple[1], tuple[2])
     
     A(v) = vec(helmholtz_chain!(reshape(v, n+1, m+1, 1, Int64(prod(size(v)) / ((n+1)*(m+1)))), helmholtz_matrix; h=h))
@@ -225,13 +221,13 @@ function retrain_model(param, model, base_model_folder, new_model_name, n, m, h,
                 input = complex_grid_to_channels!(reshape(rj[:,:,1,i],n+1,m+1,1,1); blocks=1)
                 if arch == 1
                     input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma_net, n+1, m+1, 1, 1), kappa_features, dims=3)
-                    e_unet = model.solve_subnet(input)
+                    e_unet = param.model.solve_subnet(input)
                 elseif arch == 2
                     input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma_net, n+1, m+1, 1, 1), dims=3)
-                    e_unet = model.solve_subnet(input, kappa_features)
+                    e_unet = param.model.solve_subnet(input, kappa_features)
                 else
                     input = cat(input, reshape(kappa.^2, n+1, m+1, 1, 1), reshape(gamma_net, n+1, m+1, 1, 1), dims=3)
-                    e_unet = model(input)
+                    e_unet = param.model(input)
                 end
                 e[:,:,1,i] .+= (e_unet[:,:,1,1] + im*e_unet[:,:,2,1]) .* coefficient
             end
@@ -255,7 +251,7 @@ function retrain_model(param, model, base_model_folder, new_model_name, n, m, h,
         println("X size = $(size(dataset.X)) --- Y size = $(size(dataset.Y))")
         data_loader = DataLoader(dataset, batchsize=batch_size, shuffle=true)
 
-        Flux.train!(loss!, Flux.params(model), data_loader, opt)
+        Flux.train!(loss!, Flux.params(param.model), data_loader, opt)
         loss = dataset_loss!(data_loader, loss!) / size(dataset.X,4)
         println("loss: $(loss)")
 
@@ -279,7 +275,7 @@ function retrain_model(param, model, base_model_folder, new_model_name, n, m, h,
         for (batch_r, batch_e) in data_loader
             num_samples = size(batch_e,4)
 
-            e_model = model(batch_r)
+            e_model = param.model(batch_r)
             e_model = (e_model[:,:,1,:] + im*e_model[:,:,2,:]) #.* coefficient
 
             # e_model = reshape(e_model, n+1, m+1, 1, num_samples)
@@ -311,9 +307,9 @@ function retrain_model(param, model, base_model_folder, new_model_name, n, m, h,
             
             
 
-            norms_r = mapslices(norm_Inf, r_tilde, dims=[1,2,3]) # very slow on GPU
-            r_tilde = r_tilde ./ norms_r
-            e_tilde = e_tilde ./ norms_r
+            # norms_r = mapslices(norm_Inf, r_tilde, dims=[1,2,3]) # very slow on GPU
+            # r_tilde = r_tilde ./ norms_r
+            # e_tilde = e_tilde ./ norms_r
 
             r_tilde = complex_grid_to_channels!(r_tilde; blocks=num_samples)
             e_tilde = complex_grid_to_channels!(e_tilde; blocks=num_samples)
@@ -329,5 +325,5 @@ function retrain_model(param, model, base_model_folder, new_model_name, n, m, h,
 
     end
 
-    return model
+    # return model
 end

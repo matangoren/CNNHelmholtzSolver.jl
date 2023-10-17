@@ -390,26 +390,22 @@ function unet_vs_vcycle_cpu_gmres!(model, n, m, h, kappa, kappa_features, omega,
 
         return res
     end
-    println("Before first GMRES")
     x_init = zeros(c_type,(n+1)*(m+1),blocks)
+    
     x3,flag3,err3,iter3,resvec3= KrylovMethods.blockFGMRES(As, r_vcycle, 3, tol=1e-30, maxIter=1,
                                                     M=SM, X=x_init, out=-1,flexible=true)
-    println("After first GMRES")
 
     i = 1
     x1 = x3
-    println("Before second GMRES")
     
     x1,flag1,err1,iter1,resvec1 = KrylovMethods.blockFGMRES(As, r_vcycle, restrt, tol=1e-30, maxIter=max_iter,
                                                             M=M_Unets, X =x1, out=-1,flexible=true)
-    println("After second GMRES")
 
     x_init = zeros(c_type,(n+1)*(m+1),blocks)
     x3,flag3,err3,iter3,resvec3= KrylovMethods.blockFGMRES(As, r_vcycle, 3, tol=1e-30, maxIter=1,
                                                     M=SM, X=x_init, out=-1,flexible=true)
     i = 1
     x2 = x3
-    println("Before third GMRES")
     x2,flag2,err2,iter2,resvec2 = KrylovMethods.blockFGMRES(As, r_vcycle, restrt, tol=1e-30, maxIter=max_iter,
                                                     M=M, X=x2, out=-1,flexible=true)
     println("After third GMRES")

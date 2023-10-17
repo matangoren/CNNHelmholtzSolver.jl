@@ -1,50 +1,59 @@
-using DelimitedFiles
-using PyPlot
+include("test_intro.jl")
 
-function expandModelNearest(m,n,ntarget)
-    if length(size(m))==2
-        mnew = zeros(Float64,ntarget[1],ntarget[2]);
-        for j=1:ntarget[2]
-            for i=1:ntarget[1]
-                jorig = convert(Int64,ceil((j/ntarget[2])*n[2]));
-                iorig = convert(Int64,ceil((i/ntarget[1])*n[1]));
-                mnew[i,j] = m[iorig,jorig];
-            end
-        end
-    elseif length(size(m))==3
-        mnew = zeros(Float64,ntarget[1],ntarget[2],ntarget[3]);
-        for k=1:ntarget[3]
-            for j=1:ntarget[2]
-                for i=1:ntarget[1]
-                    korig = convert(Int64,floor((k/ntarget[3])*n[3]));
-                    jorig = convert(Int64,floor((j/ntarget[2])*n[2]));
-                    iorig = convert(Int64,floor((i/ntarget[1])*n[1]));
-                    mnew[i,j,k] = m[iorig,jorig,korig];
-                end
-            end
-        end
+include("../src/unet/model.jl")
+include("../src/gpu_krylov.jl")
+include("../src/multigrid/helmholtz_methods.jl")
+include("../src/data.jl")
+
+include("../src/solvers/cnn_helmholtz_solver.jl")
+include("utils.jl")
+
+files = readdir(joinpath(@__DIR__, "files/"))
+sort!(files, by=x->parse(Int, "$(match(r".*[0-9]+", split(split(x, "Cyc")[2],"_")[1]).match)$(match(r".*[0-9]+", split(split(x, "FC")[2],"_")[1]).match)"))
+
+useSommerfeldBC = true
+domain = [0, 13.5, 0, 4.2]
+domain += [0, 64*(13.5/608), 0, 32*(4.2/304)]
+
+f_max = 6.7555556;
+size_max = 42
+sizes = [i for i=16:2:size_max]
+f = (sizes./42)*f_max
+
+solver_name = "VU"
+solver = getCnnHelmholtzSolver(solver_name; solver_tol=1e-4)
+
+for file in files
+    
+    freqIndex = parse(Int64,split(split(file, "FC")[2], "_")[1])
+    model_name = split(file,".")[1]
+    println(joinpath(@__DIR__, "models/$(model_name).bson"))
+    if isfile(joinpath(@__DIR__, "models/$(model_name).bson"))
+        println("exists")
+        continue
     end
-    return mnew
+    n = sizes[freqIndex]*16
+    m = Int64(n/2)
+    f_i = f[freqIndex]
+
+    kappa_file = joinpath(@__DIR__, "files/$(file)")
+    seg_model = get_seg_model(kappa_file, n,m; doTranspose=false) # velocity model
+    figure()
+    imshow(seg_model', clim = [1.5,4.5],cmap = "jet"); colorbar();
+    savefig(joinpath(@__DIR__,"kappas/$(model_name).png"))
+    close()
+
+    helmholtz_param, _ = get_setup(n,m,domain, f_i; blocks=1, kappa_file=kappa_file)
+    global solver = setMediumParameters(solver, helmholtz_param)
+
+    start_time = time_ns()
+    global solver = retrain(1,1, solver;iterations=30, batch_size=16, initial_set_size=128, lr=1e-4, data_epochs=4)
+    end_time = time_ns()
+    println("time took for retrain: $((end_time-start_time)/1e9)")
+
+    model = solver.model|>cpu
+    @save joinpath(@__DIR__, "models/$(model_name).bson") model
 end
 
-filename = "SEGmodel2Dsalt.dat"
-doTranspose = true
 
-n = 608
-m = 304
-newSize = [n+1, m+1]
 
-m = readdlm(filename);
-m = m*1e-3;
-
-if doTranspose
-    m = m';
-end
-
-m    = expandModelNearest(m,   collect(size(m)),newSize);
-
-println(size(m))
-figure()
-imshow(m', clim = [1.5,4.5],cmap = "jet"); colorbar();
-savefig("m.png")
-close()

@@ -54,8 +54,6 @@ solver_v = setSolverType(solver_name, solver_v)
 println("===== solving for $(solver_name) =====")
 result_v, v_history = solveLinearSystem(sparse(ones(size(rhs))), rhs, solver_v,0)
 
-
-
 start_time = time_ns()
 solver_vu = retrain(1,1, solver_vu;iterations=30, batch_size=16, initial_set_size=64, lr=1e-6, data_epochs=5)
 
